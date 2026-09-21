@@ -1,0 +1,348 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────
+   AYLI design tokens — Romantic Edition
+   Single source of truth for the visual system.
+   Fonts: Cormorant Garamond (display) + DM Sans (body)
+   ───────────────────────────────────────────── */
+
+:root {
+  /* Brand + supporting colours — Romantic Palette */
+  --color-ayli-blue: #5B7FD4;        /* soft periwinkle-blue */
+  --color-ayli-peach: #FF8FAA;       /* rose-peach — primary accent */
+  --color-blush: #FFF0F4;            /* hero/section backgrounds */
+  --color-rose-mist: #FDE8EF;        /* card tint, hover fills */
+  --color-warm-white: #FFFCFD;       /* page background */
+  --color-soft-beige: #F9F0F2;       /* muted panels */
+  --color-plum: #7C3048;             /* heading emphasis, deep accent */
+  --color-ink: #2A1820;              /* warm dark body text */
+  --color-muted: #9A7480;            /* rosy-grey secondary text */
+  --color-hairline: #EEDCE4;         /* blush-tinted borders */
+  --color-gold: #D4A853;             /* trust badges, stars */
+  --color-success: #3c9b72;
+  --color-danger: #c0506a;
+
+  /* Typography swap lane */
+  --ayli-font-display: "Cormorant Garamond", "Georgia", ui-serif, serif;
+  --ayli-font-body: "DM Sans", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@theme {
+  --color-ayli-blue: #5B7FD4;
+  --color-ayli-peach: #FF8FAA;
+  --color-blush: #FFF0F4;
+  --color-rose-mist: #FDE8EF;
+  --color-warm-white: #FFFCFD;
+  --color-soft-beige: #F9F0F2;
+  --color-plum: #7C3048;
+  --color-ink: #2A1820;
+  --color-muted: #9A7480;
+  --color-hairline: #EEDCE4;
+  --color-gold: #D4A853;
+  --color-success: #3c9b72;
+  --color-danger: #c0506a;
+
+  --font-display: var(--ayli-font-display);
+  --font-body: var(--ayli-font-body);
+
+  --radius-card: 1rem;
+  --radius-pill: 999px;
+
+  /* Romantic, warm elevations */
+  --shadow-soft: 0 1px 3px rgb(122 48 72 / 0.06), 0 6px 20px rgb(122 48 72 / 0.08);
+  --shadow-float: 0 4px 16px rgb(122 48 72 / 0.12), 0 16px 40px rgb(122 48 72 / 0.10);
+  --shadow-peach: 0 4px 20px rgb(255 143 170 / 0.35);
+  --shadow-glow: 0 0 30px rgb(255 143 170 / 0.20);
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-romantic: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --animate-fade-up: fade-up 0.5s var(--ease-out-soft) both;
+  --animate-fade-in: fade-in 0.3s ease-out both;
+  --animate-toast-in: toast-in 0.28s var(--ease-out-soft) both;
+  --animate-float: float 5s ease-in-out infinite;
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-marquee-reverse: marquee-reverse 40s linear infinite;
+
+  /* ── Micro-interaction motion tokens ── */
+  --animate-heart-pop: heart-pop 0.35s var(--ease-romantic) both;
+  --animate-check-draw: check-draw 0.4s var(--ease-out-soft) 0.1s both;
+  --animate-stagger-fade: stagger-fade 0.45s var(--ease-out-soft) both;
+  --animate-soft-collapse: soft-collapse 0.35s var(--ease-out-soft) both;
+  --animate-slide-up-in: slide-up-in 0.3s var(--ease-out-soft) both;
+  --animate-scale-down: scale-down 0.15s ease-out both;
+  --animate-pop-in: pop-in 0.3s var(--ease-romantic) both;
+  --animate-wiggle: wiggle 0.4s var(--ease-romantic) both;
+
+  @keyframes heart-pop {
+    0%   { transform: scale(0.5); opacity: 0.4; }
+    60%  { transform: scale(1.3); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  @keyframes check-draw {
+    from { stroke-dashoffset: 24; opacity: 0; }
+    to   { stroke-dashoffset: 0; opacity: 1; }
+  }
+
+  @keyframes stagger-fade {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes soft-collapse {
+    from { opacity: 1; transform: translateY(0); max-height: 200px; }
+    to   { opacity: 0; transform: translateY(-6px); max-height: 0; }
+  }
+
+  @keyframes slide-up-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes scale-down {
+    from { transform: scale(1); }
+    to   { transform: scale(0.96); }
+  }
+
+  @keyframes pop-in {
+    from { opacity: 0; transform: scale(0.86); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25%      { transform: rotate(-8deg); }
+    75%      { transform: rotate(8deg); }
+  }
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    33%       { transform: translateY(-12px) rotate(1.5deg); }
+    66%       { transform: translateY(-6px) rotate(-1deg); }
+  }
+
+  @keyframes marquee {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-50%); }
+  }
+
+  @keyframes marquee-reverse {
+    0% { transform: translateX(-50%); }
+    100% { transform: translateX(0%); }
+  }
+}
+
+/* ── View-transition recipes (React <ViewTransition>) ── */
+
+:root {
+  --duration-exit: 150ms;
+  --duration-enter: 210ms;
+  --duration-move: 400ms;
+}
+
+/* Keep the page interactive while a transition plays */
+::view-transition {
+  pointer-events: none;
+}
+
+/* Downward slides are reserved for loading/departure. Horizontal
+   direction encodes forward vs backward navigation. */
+
+/* nav-forward: old content exits left, new content enters from right */
+::view-transition-old(.nav-forward) {
+  --slide-offset: -60px;
+  animation:
+    var(--duration-exit) ease-in both fade reverse,
+    400ms ease-in-out both slide reverse;
+}
+::view-transition-new(.nav-forward) {
+  --slide-offset: 60px;
+  animation:
+    var(--duration-enter) ease-out 150ms both fade,
+    400ms ease-in-out both slide;
+}
+
+/* nav-back: old content exits right, new content enters from left */
+::view-transition-old(.nav-back) {
+  --slide-offset: 60px;
+  animation:
+    var(--duration-exit) ease-in both fade reverse,
+    400ms ease-in-out both slide reverse;
+}
+::view-transition-new(.nav-back) {
+  --slide-offset: -60px;
+  animation:
+    var(--duration-enter) ease-out 150ms both fade,
+    400ms ease-in-out both slide;
+}
+
+/* Suspense reveal: skeleton exits down, content enters up */
+::view-transition-old(.slide-down) {
+  animation:
+    var(--duration-exit) ease-out both fade reverse,
+    var(--duration-exit) ease-out both slide-y reverse;
+}
+::view-transition-new(.slide-up) {
+  animation:
+    var(--duration-enter) ease-in var(--duration-exit) both fade,
+    var(--duration-move) ease-in both slide-y;
+}
+
+/* Same-route crossfade (tabs, completed checkout steps) */
+::view-transition-old(.crossfade),
+::view-transition-new(.crossfade) {
+  animation: var(--duration-enter) ease-out both fade;
+}
+
+/* Shared-element morph softening */
+::view-transition-group(.morph) {
+  animation-duration: 400ms;
+}
+::view-transition-image-pair(.morph) {
+  animation-name: via-blur;
+}
+
+/* Pinned header: never moves during navigation. z-index keeps it above the
+   sliding content. */
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header) {
+  display: none;
+}
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+@keyframes via-blur {
+  30% {
+    filter: blur(3px);
+  }
+}
+
+@keyframes fade {
+  from {
+    filter: blur(3px);
+    opacity: 0;
+  }
+  to {
+    filter: blur(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide {
+  from {
+    translate: var(--slide-offset);
+  }
+  to {
+    translate: 0;
+  }
+}
+
+@keyframes slide-y {
+  from {
+    transform: translateY(10px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* ── Staggered grid reveal (product cards, search results) ── */
+/* Each card sets --stagger-i (0-indexed) inline for its delay. */
+.stagger-grid > * {
+  opacity: 0;
+  animation: stagger-fade 0.45s var(--ease-out-soft) both;
+  animation-delay: calc(var(--stagger-i, 0) * 40ms + 60ms);
+}
+
+/* Single-unit reveal for anything wrapped in this class */
+.section-reveal {
+  animation: fade-up 0.5s var(--ease-out-soft) both;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-body);
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-warm-white);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-ayli-peach) 30%, transparent);
+    color: var(--color-plum);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ayli-peach);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

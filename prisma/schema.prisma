@@ -1,0 +1,360 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USERS ───
+// JWT-based sessions (Auth.js). No Session/Account/VerificationToken tables —
+// identity is asserted from a signed JWT cookie and users are persisted via
+// Auth.js signIn/callback upserts. Passwords are Argon2/bcrypt hashes.
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  image     String?
+  phone     String?
+  role      Role      @default(CUSTOMER)
+  password  String?
+  addresses Address[]
+  wishlist  Wishlist?
+  cart      Cart?
+  orders    Order[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+// ─── ADDRESSES ───
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  phone     String
+  line1     String
+  line2     String?
+  city      String
+  state     String
+  pincode   String
+  country   String   @default("India")
+  isDefault Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ─── CATEGORY TREE ───
+model Category {
+  id            String        @id @default(cuid())
+  name          String
+  slug          String        @unique
+  description   String?
+  image         String?
+  isActive      Boolean       @default(true)
+  sortOrder     Int           @default(0)
+  subcategories Subcategory[]
+  products      Product[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Subcategory {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+  image       String?
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([categoryId, slug])
+}
+
+// ─── PRODUCTS ───
+// Colour intentionally does NOT live here — it belongs to ProductVariant,
+// so a single product never needs duplication for colour/size combos.
+model Product {
+  id                   String           @id @default(cuid())
+  name                 String
+  slug                 String           @unique
+  sku                  String           @unique
+  description          String?          @db.Text
+  shortDescription     String?
+  productType          String?
+  brand                String?
+  isActive             Boolean          @default(true)
+  isFeatured           Boolean          @default(false)
+
+  categoryId           String
+  category             Category         @relation(fields: [categoryId], references: [id])
+  subcategoryId        String?
+  subcategory          Subcategory?     @relation(fields: [subcategoryId], references: [id])
+
+  mrp                  Decimal          @db.Decimal(10, 2)
+  sellingPrice         Decimal          @db.Decimal(10, 2)
+  costPrice            Decimal?         @db.Decimal(10, 2)
+  taxRate              Decimal          @default(0) @db.Decimal(5, 2)
+
+  fabric               String?
+  pattern              String?
+  printType            String?
+  sleeveType           String?
+  neckType             String?
+  length               String?
+  fit                  String?
+  waist                String?
+  rise                 String?
+  occasion             String?
+  material             String?
+  transparency         String?
+  stretchability       String?
+  washCare             String?          @db.Text
+
+  sizeChartUrl         String?
+  modelInfo            String?
+  garmentMeasurements  String?          @db.Text
+  productMeasurements  String?          @db.Text
+  countryOfOrigin      String           @default("India")
+
+  images               ProductImage[]
+  variants             ProductVariant[]
+  collections          ProductCollection[]
+  wishlistItems        WishlistItem[]
+  orderItems           OrderItem[]
+
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  @@index([categoryId])
+  @@index([subcategoryId])
+  @@index([isActive])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  sortOrder Int     @default(0)
+  isMain    Boolean @default(false)
+
+  @@index([productId])
+}
+
+// ─── VARIANTS (first-class entities) ───
+// One sellable colour × size combination. Colour lives here only.
+model ProductVariant {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  sku       String   @unique
+  barcode   String?
+  colour    String
+  colourHex String?
+  size      String
+  price     Decimal? @db.Decimal(10, 2)
+  weight    Decimal? @db.Decimal(8, 2)
+  isActive  Boolean  @default(true)
+
+  inventory Inventory?
+  cartItems CartItem[]
+  orderItems OrderItem[]
+
+  @@unique([productId, colour, size])
+  @@index([productId])
+}
+
+// ─── INVENTORY (per variant) ───
+model Inventory {
+  id                String         @id @default(cuid())
+  variantId         String         @unique
+  variant           ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  stockQuantity     Int            @default(0)
+  reservedQuantity  Int            @default(0)
+  lowStockThreshold Int            @default(5)
+  warehouseLocation String?
+  stockStatus       StockStatus    @default(IN_STOCK)
+  updatedAt         DateTime       @updatedAt
+}
+
+enum StockStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+}
+
+// ─── COLLECTIONS (m:n with products) ───
+model Collection {
+  id          String              @id @default(cuid())
+  name        String
+  slug        String              @unique
+  description String?
+  image       String?
+  isActive    Boolean             @default(true)
+  sortOrder   Int                 @default(0)
+  products    ProductCollection[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model ProductCollection {
+  productId    String
+  collectionId String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  sortOrder    Int        @default(0)
+
+  @@id([productId, collectionId])
+}
+
+// ─── WISHLIST ───
+model Wishlist {
+  id     String         @id @default(cuid())
+  userId String         @unique
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items  WishlistItem[]
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  wishlistId String
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([wishlistId, productId])
+}
+
+// ─── CART ───
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String         @id @default(cuid())
+  cartId    String
+  cart      Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  quantity  Int            @default(1)
+  createdAt DateTime       @default(now())
+
+  @@unique([cartId, variantId])
+}
+
+// ─── COUPONS ───
+model Coupon {
+  id           String     @id @default(cuid())
+  code         String     @unique
+  description  String?    @db.Text
+  discountType CouponType @default(PERCENT)
+  value        Decimal    @db.Decimal(10, 2)
+  minOrder     Decimal    @default(0) @db.Decimal(10, 2)
+  maxDiscount  Decimal?   @db.Decimal(10, 2)
+  isActive     Boolean    @default(true)
+  eventCodes   String?    // optional comma-separated (marketing)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+enum CouponType {
+  PERCENT
+  FIXED
+}
+
+// ─── ORDERS ───
+model Order {
+  id            String        @id @default(cuid())
+  orderNumber   String        @unique
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  addressId     String
+  address       Address       @relation(fields: [addressId], references: [id])
+
+  subtotal      Decimal       @db.Decimal(10, 2)
+  discount      Decimal       @default(0) @db.Decimal(10, 2)
+  tax           Decimal       @default(0) @db.Decimal(10, 2)
+  shipping      Decimal       @default(0) @db.Decimal(10, 2)
+  total         Decimal       @db.Decimal(10, 2)
+  couponCode    String?
+  couponDiscount Decimal      @default(0) @db.Decimal(10, 2)
+
+  status        OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentMethod String?
+  paymentOrderId String?
+  paymentId     String?
+
+  shippingMethod String?
+  trackingNumber String?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  notes          String?
+  items          OrderItem[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// Order items snapshot variant/product data at purchase time so order
+// history never changes when catalog data is edited later.
+model OrderItem {
+  id        String         @id @default(cuid())
+  orderId   String
+  order     Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product        @relation(fields: [productId], references: [id])
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  name      String
+  image     String?
+  colour    String
+  size      String
+  quantity  Int
+  price     Decimal        @db.Decimal(10, 2)
+  total     Decimal        @db.Decimal(10, 2)
+
+  @@index([orderId])
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}

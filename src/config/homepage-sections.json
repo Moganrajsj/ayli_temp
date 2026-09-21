@@ -1,0 +1,123 @@
+{
+  "sections": [
+    {
+      "categoryId": "cmu3mvbnc0000orb8b82a2e75",
+      "categorySlug": "kurtis-tops",
+      "title": "Kurtis & Tops",
+      "eyebrow": "Studio Favorites",
+      "subtitle": "Straight, A-line & everyday silhouettes crafted in breathable fabrics",
+      "enabled": true,
+      "sortOrder": 0,
+      "productIds": [
+        "cmu3mvsnm002sorb88x5ft5pu",
+        "cmu3mw0lt004eorb8z64a5xqc",
+        "cmu3mwcv40084orb8udroj2cd",
+        "cmu3mwob000bcorb8lzu5q76f",
+        "cmu3mw7ja006iorb8vn8yvxkl",
+        "cmu3mwix6009qorb8gs28kgr4"
+      ],
+      "maxProducts": 6
+    },
+    {
+      "categoryId": "cmu3mvetb000forb8r6vplyqe",
+      "categorySlug": "co-ord-sets",
+      "title": "Co-ord Sets",
+      "eyebrow": "Effortless Pairs",
+      "subtitle": "Top & bottom pairings designed to make getting dressed effortless",
+      "enabled": true,
+      "sortOrder": 1,
+      "productIds": [
+        "cmu3mxbjm00inorb88bmgt0c0",
+        "cmu3mxgg600k9orb8dv82mmlo",
+        "cmu3mxlba00lvorb8p19mq4lj",
+        "cmu3mxrls00nhorb840g46kx0",
+        "cmu3mxvdd00ouorb8xvgao7re",
+        "cmu3mxyte00pyorb89uwltg10"
+      ],
+      "maxProducts": 6
+    },
+    {
+      "categoryId": "cmu3mvgf0000qorb8zf0crouq",
+      "categorySlug": "kurta-sets",
+      "title": "Kurta Sets",
+      "eyebrow": "Festive & Everyday",
+      "subtitle": "Complete sets with matching pants and dupattas for Indian celebrations",
+      "enabled": true,
+      "sortOrder": 2,
+      "productIds": [
+        "cmu3my39p00rborb8vrcvd6o7",
+        "cmu3mybr600uaorb8quyjgxas",
+        "cmu3my7rg00sxorb8dj5oswkc",
+        "cmu3mygz100vworb84yf1rdqe",
+        "cmu3mymd100xiorb8nwqjyxda",
+        "cmu3mysbm00z4orb8vzcbuv42"
+      ],
+      "maxProducts": 6
+    },
+    {
+      "categoryId": "cmu3mvhqt0011orb8qxsk2hc5",
+      "categorySlug": "dresses",
+      "title": "Dresses",
+      "eyebrow": "Everyday Elegance",
+      "subtitle": "Short, midi & maxi silhouettes made to move with you all day",
+      "enabled": true,
+      "sortOrder": 3,
+      "productIds": [
+        "cmu3myvkm010horb83gffwf7g",
+        "cmu3n36oa0152or1oi1toicme",
+        "cmu3myzme0123orb8nnwtz9g0",
+        "cmu3mz4pb013gorb8n1xluqgq",
+        "cmu3n3b7s016oor1oz9i05i8z",
+        "cmu3n3esy0181or1o0t97tttl"
+      ],
+      "maxProducts": 6
+    },
+    {
+      "categoryId": "cmu3mvjhh001eorb8ngiy8lyg",
+      "categorySlug": "bottoms",
+      "title": "Bottoms",
+      "eyebrow": "Foundation Pieces",
+      "subtitle": "Palazzos, trousers, and skirts tailored for supreme comfort",
+      "enabled": true,
+      "sortOrder": 4,
+      "productIds": [
+        "cmu3n3qkm01cmor1oop83bm55",
+        "cmu3n3v9e01dzor1o5tcpe7se",
+        "cmu3n3z8b01fcor1oqqc658fk",
+        "cmu3n42wd01gpor1oky5vrgh0"
+      ],
+      "maxProducts": 6
+    },
+    {
+      "categoryId": "cmu3mvlqa001rorb8y63to4gh",
+      "categorySlug": "fabrics",
+      "title": "Fabrics",
+      "eyebrow": "Pure Yardage",
+      "subtitle": "Cotton, rayon, and Chanderi fabrics for custom tailoring",
+      "enabled": true,
+      "sortOrder": 5,
+      "productIds": [
+        "cmu3n4gq601ksor1oc4rd7wtu",
+        "cmu3n4jyx01lwor1oko7p5ws3",
+        "cmu3n4mhc01mror1om0i8ncj8",
+        "cmu3n4nx501n4or1objm5sx4t"
+      ],
+      "maxProducts": 6
+    },
+    {
+      "categoryId": "cmu3mvnap0024orb8nv4ew5fx",
+      "categorySlug": "accessories",
+      "title": "Accessories",
+      "eyebrow": "Finishing Touches",
+      "subtitle": "Jewellery, scarves, and bags to complete your look",
+      "enabled": false,
+      "sortOrder": 6,
+      "productIds": [
+        "cmu3n4p4k01nhor1o0wqopr6l",
+        "cmu3n4qej01noor1oh4moird6",
+        "cmu3n4rh501nvor1onfvihv70"
+      ],
+      "maxProducts": 6
+    }
+  ]
+}
