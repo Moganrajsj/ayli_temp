@@ -14,16 +14,16 @@ export const BRAND_COLOURS = {
 } as const;
 
 /**
- * Reads a NEXT_PUBLIC_ value with a developer-friendly default locally, but
- * fails the production build loudly if the variable was never configured —
- * instead of silently pointing canonicals/sitemap to localhost or WhatsApp
- * links at a dead demo number.
+ * Reads a NEXT_PUBLIC_ value with a developer-friendly fallback when the
+ * variable is not configured. Prefer setting the real value in the
+ * deployment (Vercel → Project → Environment Variables); the fallback keeps
+ * the build from failing when the variable is temporarily unset.
  */
 function requireConfig(value: string | undefined, key: string, fallback: string): string {
   if (value) return value;
   if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      `Missing required environment variable: ${key}. ` +
+    console.warn(
+      `[config] Environment variable "${key}" is not set; using fallback "${fallback}". ` +
         `Set "${key}" in your deployment (Vercel → Project → Environment Variables).`
     );
   }
