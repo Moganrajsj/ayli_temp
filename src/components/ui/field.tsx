@@ -40,7 +40,7 @@ function FieldWrap({ id, label, hint, error, required, children }: FieldWrapProp
 }
 
 const FIELD_CLASSES =
-  "h-12 w-full rounded-card border border-hairline bg-warm-white px-4 text-[15px] text-ink placeholder:text-muted/70 transition-colors focus:border-ayli-blue focus:outline-none aria-[invalid=true]:border-danger";
+  "h-12 w-full rounded-card border border-hairline bg-warm-white px-4 text-[15px] text-ink placeholder:text-muted/70 transition-colors focus:border-ayli-blue focus:outline-none aria-[invalid=true]:border-danger aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-danger/30";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;

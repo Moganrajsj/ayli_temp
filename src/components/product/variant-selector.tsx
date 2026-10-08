@@ -60,9 +60,16 @@ export function VariantSelector({
       <div>
         <div className="mb-2.5 flex items-baseline justify-between gap-3">
           <p className="text-sm font-medium text-ink">Colour</p>
-          <p className="truncate text-sm text-muted">
-            {selectedColour ? parseColourName(selectedColour) : "Select a colour"}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm text-muted">
+              {selectedColour ? parseColourName(selectedColour) : "Select a colour"}
+            </p>
+            {selectedColour && !colourAvailable(selectedColour) ? (
+              <span className="rounded-pill bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger">
+                Out of Stock
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className="flex flex-wrap gap-2.5">
           {colours.map((colour) => {
@@ -73,15 +80,15 @@ export function VariantSelector({
               <button
                 key={colour}
                 type="button"
-                disabled={soldOut}
                 aria-pressed={isSelected}
                 onClick={() => handleColour(colour)}
-                title={parseColourName(colour)}
+                title={`${parseColourName(colour)}${soldOut ? " (Out of Stock)" : ""}`}
                 className={cn(
-                  "relative grid h-9 w-9 place-items-center rounded-full border transition-all duration-150 active:scale-95 disabled:cursor-not-allowed",
+                  "relative grid h-9 w-9 place-items-center rounded-full border transition-all duration-150 active:scale-95",
                   isSelected
                     ? "border-ayli-blue ring-2 ring-ayli-blue/30"
-                    : "border-hairline hover:border-muted"
+                    : "border-hairline hover:border-muted",
+                  soldOut && !isSelected && "opacity-70"
                 )}
               >
                 <span
@@ -107,6 +114,14 @@ export function VariantSelector({
           <div className="flex items-center gap-3">
             <Link
               href="/size-guide"
+              onClick={(e) => {
+                const el = document.getElementById("fit-and-measurements");
+                if (el) {
+                  e.preventDefault();
+                  if (el instanceof HTMLDetailsElement) el.open = true;
+                  el.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+              }}
               className="inline-flex items-center gap-1 text-xs font-medium text-ayli-blue underline-offset-2 transition-colors hover:text-[#1496a8] hover:underline"
             >
               Size guide

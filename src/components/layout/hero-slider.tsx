@@ -8,49 +8,53 @@ import { Icon } from "@/components/ui/icons";
 interface Slide {
   src: string;
   alt: string;
-  kicker: string;
   title: string;
-  subtitle: string;
   ctaLabel: string;
   ctaHref: string;
 }
 
 const SLIDES: Slide[] = [
   {
-    src: "/images/hero-banner.jpg",
-    alt: "AYLI Festive Edit — Premium Collection",
-    kicker: "The Festive Edit",
-    title: "Ready for the spotlight",
-    subtitle: "Crafted sets that move from puja to party.",
-    ctaLabel: "Shop festive",
-    ctaHref: "/collection/festive-collection",
-  },
-  {
-    src: "/images/hero-coord.jpg",
-    alt: "AYLI Co-ord Sets — Fresh Arrivals",
-    kicker: "Just arrived",
-    title: "Co-ord sets, made effortless",
-    subtitle: "Mix, match and be ready in one step.",
-    ctaLabel: "Shop new in",
+    src: "/images/hero/hero-01.png",
+    alt: "AYLI womenswear campaign banner",
+    title: "New season signatures",
+    ctaLabel: "Shop now",
     ctaHref: "/collection/new-arrivals",
   },
   {
-    src: "/images/cat-kurtas.jpg",
-    alt: "AYLI Kurta Sets — Elegant Everyday",
-    kicker: "Everyday elegance",
-    title: "Kurtas that keep up",
-    subtitle: "Structured fits in skin-kind fabrics.",
-    ctaLabel: "Shop kurtis",
-    ctaHref: "/category/kurtis-tops",
+    src: "/images/hero/hero-02.png",
+    alt: "AYLI womenswear campaign banner",
+    title: "Trending right now",
+    ctaLabel: "Shop now",
+    ctaHref: "/collection/trending-now",
   },
   {
-    src: "/images/cat-dresses.jpg",
-    alt: "AYLI Dresses — Modern Feminine",
-    kicker: "Weekend edit",
-    title: "Dresses with a point of view",
-    subtitle: "Short to maxi, buttoned and belted.",
-    ctaLabel: "Shop dresses",
-    ctaHref: "/category/dresses",
+    src: "/images/hero/hero-03.png",
+    alt: "AYLI womenswear campaign banner",
+    title: "Our most-loved picks",
+    ctaLabel: "Shop now",
+    ctaHref: "/collection/bestsellers",
+  },
+  {
+    src: "/images/hero/hero-04.png",
+    alt: "AYLI womenswear campaign banner",
+    title: "Quietly made to last",
+    ctaLabel: "Shop now",
+    ctaHref: "/collection/bestsellers",
+  },
+  {
+    src: "/images/hero/hero-05.png",
+    alt: "AYLI womenswear campaign banner",
+    title: "Everyday, elevated",
+    ctaLabel: "Shop now",
+    ctaHref: "/collection/trending-now",
+  },
+  {
+    src: "/images/hero/hero-06.png",
+    alt: "AYLI womenswear campaign banner",
+    title: "Details worth noticing",
+    ctaLabel: "Shop now",
+    ctaHref: "/collection/new-arrivals",
   },
 ];
 
@@ -143,8 +147,7 @@ useEffect(() => {
       aria-label="Hero fashion carousel"
     >
       <div
-        className="relative w-full overflow-hidden"
-        style={{ aspectRatio: "9/13" }}
+        className="relative w-full overflow-hidden aspect-[16/9]"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         onMouseEnter={pause}
@@ -152,11 +155,13 @@ useEffect(() => {
         onFocusCapture={pause}
         onBlurCapture={resume}
       >
+        {/* All slide art is authored at 1920x1080 (16:9) and the frame is 16:9 at
+            every breakpoint, so `object-cover` never crops a pixel. */}
         {SLIDES.map((s, i) => (
           <Link
             key={s.src}
             href={s.ctaHref}
-            aria-label={`${s.kicker}: ${s.title} — ${s.ctaLabel}`}
+            aria-label={`${s.title} — ${s.ctaLabel}`}
             tabIndex={i === current ? 0 : -1}
             aria-hidden={i !== current}
             className="group absolute inset-0 block transition-opacity duration-700 ease-in-out focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white"
@@ -169,9 +174,9 @@ useEffect(() => {
               src={s.src}
               alt={s.alt}
               fill
-              priority={i === 0}
-              sizes="(max-width: 768px) 100vw, 100vw"
-              className="object-cover object-top animate-fade-in"
+              preload={i === 0}
+              sizes="100vw"
+              className="object-cover object-center animate-fade-in"
               draggable={false}
             />
           </Link>
@@ -180,37 +185,46 @@ useEffect(() => {
         {/* Gradient overlay */}
         <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-black/25 via-transparent to-black/70" />
 
-        {/* Brand statement — top center */}
-        <div className="pointer-events-none absolute inset-x-0 top-8 z-20 flex flex-col items-center select-none">
-          <span className="font-serif text-[1.6rem] font-light italic tracking-wide text-white drop-shadow sm:text-3xl md:text-4xl">
-            Premium &amp; Elegant
-          </span>
-        </div>
-
-        {/* Slide content — bottom */}
-        <div
-          key={current}
-          className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-4 px-4 pb-9 text-center sm:gap-6 sm:pb-12"
-        >
-          <span key={`kicker-${current}`} className="animate-fade-up rounded-pill border border-white/35 bg-black/15 px-3 py-1 text-[9px] font-medium uppercase tracking-[0.24em] text-white/90 backdrop-blur-sm sm:text-[10px]">
-            {slide.kicker}
-          </span>
-          <span key={`title-${current}`} className="animate-fade-up font-serif text-3xl font-light italic leading-tight text-white drop-shadow sm:text-5xl md:text-[3.4rem]">
-            {slide.title}
-          </span>
-          <span key={`sub-${current}`} className="animate-fade-up max-w-md text-xs font-light leading-relaxed text-white/70 sm:text-sm">
-            {slide.subtitle}
-          </span>
-          <Link
-            href={slide.ctaHref}
-            className="group inline-flex items-center gap-2 rounded-full bg-white px-7 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink shadow-lg transition-all duration-300 hover:bg-ayli-peach hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:text-xs"
+        {/* Slide CTA — the only text on the banner. Dots sit in the flow (not
+            absolutely positioned) so they can never overlap the button in a
+            short 16:9 frame, and they stay outside the keyed block so keyboard
+            focus survives autoplay. `title` is no longer rendered visually but
+            still names each slide link for screen readers. */}
+        <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-2.5 px-4 pb-4 sm:gap-4 sm:pb-8">
+          <div
+            className="flex items-center justify-center gap-2"
+            role="tablist"
+            aria-label="Slide indicators"
           >
-            {slide.ctaLabel}
-            <Icon
-              name="arrow-right"
-              className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"
-            />
-          </Link>
+            {SLIDES.map((_, i) => (
+              <button
+                key={i}
+                role="tab"
+                aria-selected={i === current}
+                aria-label={`Go to slide ${i + 1}`}
+                onClick={() => handleDotClick(i)}
+                className={[
+                  "rounded-full transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/70",
+                  i === current
+                    ? "h-1.5 w-6 bg-white"
+                    : "h-1.5 w-1.5 bg-white/40 hover:bg-white/65",
+                ].join(" ")}
+              />
+            ))}
+          </div>
+
+          <div key={current} className="flex flex-col items-center">
+            <Link
+              href={slide.ctaHref}
+              className="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-ink shadow-lg transition-all duration-300 hover:bg-ayli-peach hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:px-7 sm:py-3 sm:text-xs"
+            >
+              {slide.ctaLabel}
+              <Icon
+                name="arrow-right"
+                className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"
+              />
+            </Link>
+          </div>
         </div>
 
         {/* Pause/play control */}
@@ -232,45 +246,7 @@ useEffect(() => {
             </svg>
           )}
         </button>
-
-        {/* Slide indicators */}
-        <div
-          className="absolute inset-x-0 bottom-24 z-20 flex items-center justify-center gap-2 sm:bottom-[7.5rem]"
-          role="tablist"
-          aria-label="Slide indicators"
-        >
-          {SLIDES.map((_, i) => (
-            <button
-              key={i}
-              role="tab"
-              aria-selected={i === current}
-              aria-label={`Go to slide ${i + 1}`}
-              onClick={() => handleDotClick(i)}
-              className={[
-                "rounded-full transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/70",
-                i === current
-                  ? "h-1.5 w-6 bg-white"
-                  : "h-1.5 w-1.5 bg-white/40 hover:bg-white/65",
-              ].join(" ")}
-            />
-          ))}
-        </div>
       </div>
-
-      {/* Desktop: override aspect ratio via media query */}
-      <style>{`
-        @media (min-width: 640px) {
-          section[aria-label="Hero fashion carousel"] > div {
-            aspect-ratio: 4/3;
-          }
-        }
-        @media (min-width: 1024px) {
-          section[aria-label="Hero fashion carousel"] > div {
-            aspect-ratio: 16/7;
-            max-height: 90vh;
-          }
-        }
-      `}</style>
     </section>
   );
 }

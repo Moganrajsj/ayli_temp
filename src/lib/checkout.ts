@@ -2,8 +2,10 @@
 // client components (values here are never exported from "use server" files).
 
 export const EXPRESS_SHIPPING_FEE = 99;
+export const COD_FEE = 49;
 
 export type ShippingMethod = "standard" | "express";
+export type PaymentMethodChoice = "upi" | "card" | "cod";
 
 export interface CheckoutAddress {
   id: string;
@@ -26,6 +28,8 @@ export interface OrderActionResult {
   payment?: { id: string; amount: number; currency: string };
   gateway?: string;
   publicKey?: string | null;
+  /** PhonePe only: the hosted payment page URL to redirect the customer to. */
+  redirectUrl?: string;
   fieldErrors?: Record<string, string>;
   address?: CheckoutAddress;
 }

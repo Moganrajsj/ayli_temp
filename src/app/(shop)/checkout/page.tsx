@@ -11,9 +11,17 @@ export const metadata: Metadata = {
   title: "Checkout",
 };
 
-export default async function CheckoutPage() {
+export default async function CheckoutPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin?callbackUrl=/checkout");
+
+  // paymentError is set by /checkout/callback when PhonePe redirects back after a failed payment.
+  const { paymentError } = await searchParams;
+  const initialError = typeof paymentError === "string" ? paymentError : undefined;
 
   const { lines, totals } = await getServerCart(session.user.id);
   if (lines.length === 0 || !totals || totals.itemCount <= 0) {
@@ -49,7 +57,7 @@ export default async function CheckoutPage() {
             {totals.itemCount} item{totals.itemCount === 1 ? "" : "s"} in your bag
           </p>
         </div>
-        <CheckoutFlow addresses={addresses} lines={lines} totals={totals} />
+        <CheckoutFlow addresses={addresses} lines={lines} totals={totals} initialError={initialError} />
       </PageContainer>
     </div>
   );

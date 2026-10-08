@@ -71,4 +71,48 @@ export class RazorpayProvider implements PaymentProvider {
       .digest("hex");
     return expected === params.signature;
   }
+
+  async refundPayment(paymentId: string, amountInRupees?: number): Promise<{ id: string; amount: number; status: string }> {
+    if (!RazorpayKey || !RazorpaySecret) {
+      throw new Error("Razorpay credentials are not configured.");
+    }
+
+    const payload: Record<string, unknown> = {};
+    if (amountInRupees && amountInRupees > 0) {
+      payload.amount = Math.round(amountInRupees * 100);
+    }
+
+    const res = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}/refund`, {
+      method: "POST",
+      headers: {
+        Authorization:
+          "Basic " +
+          Buffer.from(`${RazorpayKey}:${RazorpaySecret}`).toString("base64"),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Razorpay refund failed (${res.status}): ${text}`);
+    }
+
+    const data = (await res.json()) as { id: string; amount: number; status: string };
+    return {
+      id: data.id,
+      amount: data.amount ? data.amount / 100 : (amountInRupees ?? 0),
+      status: data.status ?? "processed",
+    };
+  }
+}
+
+export function verifyRazorpayWebhookSignature(
+  rawBody: string,
+  signature: string,
+  secret: string
+): boolean {
+  if (!signature || !secret) return false;
+  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
+  return expected === signature;
 }

@@ -1,9 +1,9 @@
 // Payment provider abstraction — the ONLY gateway interface consumers see.
-// The initial implementation is Razorpay (src/lib/razorpay.ts); swapping later
-// means a new class + one factory line here. A mock provider (local/dev only)
-// keeps the whole checkout flow testable before real Razorpay keys exist.
+// PhonePe is the active production gateway (redirect-flow / PAY_PAGE).
+// Razorpay implementation is retained but no longer wired into the factory.
+// A MockPaymentProvider keeps the full checkout flow testable without real keys.
 import { randomUUID } from "node:crypto";
-import { RazorpayProvider } from "@/lib/razorpay";
+import { PhonePeProvider } from "@/lib/phonepe";
 
 export interface CreateOrderParams {
   amount: number; // rupees
@@ -15,6 +15,8 @@ export interface PaymentOrder {
   id: string;
   amount: number;
   currency: string;
+  /** PhonePe only: URL of the hosted payment page the customer should be sent to. */
+  redirectUrl?: string;
 }
 
 export interface VerifyPaymentParams {
@@ -24,7 +26,7 @@ export interface VerifyPaymentParams {
 }
 
 export interface PaymentProvider {
-  readonly gateway: "razorpay" | "mock";
+  readonly gateway: "razorpay" | "phonepe" | "mock";
   createOrder(params: CreateOrderParams): Promise<PaymentOrder>;
   verifyPayment(params: VerifyPaymentParams): Promise<boolean>;
   publicKey(): string | null;
@@ -52,16 +54,16 @@ class MockPaymentProvider implements PaymentProvider {
   }
 }
 
-const hasRazorpayKeys = Boolean(
-  process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET
+const hasPhonePeKeys = Boolean(
+  process.env.PHONEPE_MERCHANT_ID && process.env.PHONEPE_SALT_KEY
 );
 
 export const paymentProvider: PaymentProvider =
-  hasRazorpayKeys && process.env.NODE_ENV !== "test"
-    ? new RazorpayProvider()
+  hasPhonePeKeys && process.env.NODE_ENV !== "test"
+    ? new PhonePeProvider()
     : process.env.NODE_ENV === "production"
-      ? // No real keys in prod: checkout would hang, so fail loudly at build/start.
-        new RazorpayProvider()
+      ? // No real keys in prod: fail loudly so the misconfiguration is obvious.
+        new PhonePeProvider()
       : new MockPaymentProvider();
 
 export const isMockGateway = (): boolean =>

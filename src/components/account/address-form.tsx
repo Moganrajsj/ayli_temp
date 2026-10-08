@@ -52,7 +52,7 @@ export function AddressForm({ defaults, onCancelHref }: AddressFormProps) {
           defaultValue={defaults?.phone}
           autoComplete="tel"
           placeholder="10-digit mobile number"
-          maxLength={10}
+          maxLength={15}
           error={state?.fieldErrors?.phone}
           required
         />
@@ -107,7 +107,7 @@ export function AddressForm({ defaults, onCancelHref }: AddressFormProps) {
           inputMode="numeric"
           defaultValue={defaults?.pincode}
           autoComplete="postal-code"
-          maxLength={6}
+          maxLength={8}
           error={state?.fieldErrors?.pincode}
           required
         />

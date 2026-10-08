@@ -23,6 +23,7 @@ model User {
   wishlist  Wishlist?
   cart      Cart?
   orders    Order[]
+  returns   ReturnRequest[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
@@ -126,6 +127,7 @@ model Product {
   washCare             String?          @db.Text
 
   sizeChartUrl         String?
+  sizeChartData        String?          @db.LongText
   modelInfo            String?
   garmentMeasurements  String?          @db.Text
   productMeasurements  String?          @db.Text
@@ -151,6 +153,7 @@ model ProductImage {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   url       String
   alt       String?
+  colour    String?
   sortOrder Int     @default(0)
   isMain    Boolean @default(false)
 
@@ -313,6 +316,8 @@ model Order {
   deliveredAt    DateTime?
   notes          String?
   items          OrderItem[]
+  returns        ReturnRequest[]
+  refunds        Refund[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -337,6 +342,7 @@ model OrderItem {
   quantity  Int
   price     Decimal        @db.Decimal(10, 2)
   total     Decimal        @db.Decimal(10, 2)
+  returnItems ReturnItem[]
 
   @@index([orderId])
 }
@@ -357,4 +363,70 @@ enum PaymentStatus {
   PAID
   FAILED
   REFUNDED
+}
+
+// ─── RETURN REQUESTS ───
+model ReturnRequest {
+  id         String       @id @default(cuid())
+  orderId    String
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason     String
+  comments   String?      @db.Text
+  videoUrl   String?
+  status     ReturnStatus @default(PENDING)
+  adminNotes String?      @db.Text
+  items      ReturnItem[]
+  refunds    Refund[]
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])
+}
+
+model ReturnItem {
+  id              String        @id @default(cuid())
+  returnRequestId String
+  returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  orderItemId     String
+  orderItem       OrderItem     @relation(fields: [orderItemId], references: [id])
+  quantity        Int           @default(1)
+}
+
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RECEIVED
+  REFUNDED
+}
+
+// ─── REFUNDS ───
+model Refund {
+  id               String         @id @default(cuid())
+  orderId          String
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  returnRequestId  String?
+  returnRequest    ReturnRequest? @relation(fields: [returnRequestId], references: [id])
+  razorpayRefundId String?        @unique
+  amount           Decimal        @db.Decimal(10, 2)
+  status           String         @default("PROCESSED")
+  reason           String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([orderId])
+}
+
+// ─── WEBHOOK LOGS ───
+model WebhookLog {
+  id        String   @id @default(cuid())
+  eventId   String   @unique
+  eventType String
+  payload   String   @db.Text
+  status    String   @default("PROCESSED")
+  createdAt DateTime @default(now())
 }

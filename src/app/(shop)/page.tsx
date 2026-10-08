@@ -10,7 +10,7 @@ import { VideoText } from "@/components/ui/video-text";
 import { NewArrivalsSection } from "@/components/product/new-arrivals-section";
 import { getHomepageCategorySections } from "@/lib/homepage-config";
 import { CategoryProductSection } from "@/components/product/category-product-section";
-import { TestimonialsMarquee } from "@/components/home/testimonials-marquee";
+import { GoogleReviewsSection } from "@/components/home/google-reviews-section";
 import { AnimateOnMount } from "@/components/ui/motion";
 
 const STORY_CATEGORIES = [
@@ -575,8 +575,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Customer Testimonials Marquee (Top to the Footer) ── */}
-      <TestimonialsMarquee />
+      {/* ── Google Reviews CTA (Top to the Footer) ── */}
+      <GoogleReviewsSection />
     </>
   );
 }

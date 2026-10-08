@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { SITE_URL } from "@/config/constants";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 const STATIC_ROUTES: Array<{ route: string; priority: number }> = [
   { route: "", priority: 1 },
@@ -12,38 +12,39 @@ const STATIC_ROUTES: Array<{ route: string; priority: number }> = [
   { route: "/privacy-policy", priority: 0.3 },
   { route: "/terms", priority: 0.3 },
   { route: "/shipping-policy", priority: 0.3 },
+  { route: "/cancellation-policy", priority: 0.3 },
   { route: "/return-refund", priority: 0.3 },
+  { route: "/cookie-policy", priority: 0.3 },
   { route: "/size-guide", priority: 0.4 },
   { route: "/care-guide", priority: 0.4 },
   { route: "/faq", priority: 0.4 },
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [categories, subcategories, collections, products] = await Promise.all([
-    prisma.category.findMany({
-      where: { isActive: true },
-      select: { slug: true, updatedAt: true },
-    }),
-    prisma.subcategory.findMany({
-      where: { isActive: true, category: { isActive: true } },
-      select: { slug: true, category: { select: { slug: true } } },
-    }),
-    prisma.collection.findMany({
-      where: { isActive: true },
-      select: { slug: true, updatedAt: true },
-    }),
-    prisma.product.findMany({
-      where: { isActive: true },
-      select: { slug: true, updatedAt: true },
-    }),
-  ]);
-
   const routes: MetadataRoute.Sitemap = STATIC_ROUTES.map(({ route, priority }) => ({
     url: `${SITE_URL}${route}`,
     lastModified: new Date(),
     changeFrequency: "daily",
     priority,
   }));
+
+  try {
+    const categories = await prisma.category.findMany({
+      where: { isActive: true },
+      select: { slug: true, updatedAt: true },
+    });
+    const subcategories = await prisma.subcategory.findMany({
+      where: { isActive: true, category: { isActive: true } },
+      select: { slug: true, category: { select: { slug: true } } },
+    });
+    const collections = await prisma.collection.findMany({
+      where: { isActive: true },
+      select: { slug: true, updatedAt: true },
+    });
+    const products = await prisma.product.findMany({
+      where: { isActive: true },
+      select: { slug: true, updatedAt: true },
+    });
 
   for (const cat of categories) {
     routes.push({
@@ -79,6 +80,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.9,
     });
+  }
+  } catch (error) {
+    console.warn("Failed to generate dynamic sitemap routes:", error);
   }
 
   return routes;

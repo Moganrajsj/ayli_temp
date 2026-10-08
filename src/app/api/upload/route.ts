@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import { getVerifiedAdmin } from "@/lib/admin";
 import { saveUploadedImage, validateImageFile } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id || session.user.role !== "ADMIN") {
+  const admin = await getVerifiedAdmin();
+  if (!admin) {
     return NextResponse.json(
       { ok: false, error: "You are not authorized to upload images." },
       { status: 401 },

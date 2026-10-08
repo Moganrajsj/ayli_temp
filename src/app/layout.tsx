@@ -74,6 +74,15 @@ function SkipLink() {
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "AYLI",
+    url: SITE_URL,
+    logo: `${SITE_URL}/icon.svg`,
+    description: "AYLI is a premium women's fashion destination — kurtis, co-ord sets, dresses & more.",
+  };
+
   return (
     <html
       lang="en"
@@ -82,6 +91,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={`${cormorantGaramond.variable} ${dmSans.variable}`}
     >
       <body className="flex min-h-dvh flex-col antialiased">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        />
         <SessionProvider>
           <ToastProvider>
             <SkipLink />

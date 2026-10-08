@@ -39,7 +39,12 @@ export type IconName =
   | "trash"
   | "logout"
   | "sliders"
-  | "check";
+  | "check"
+  | "shield-check"
+  | "credit-card"
+  | "banknotes"
+  | "qr-code"
+  | "refresh";
 
 function Paths({ name, solid }: { name: IconName; solid: boolean }) {
   switch (name) {
@@ -231,6 +236,46 @@ function Paths({ name, solid }: { name: IconName; solid: boolean }) {
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
           <path d="m16 17 5-5-5-5" />
           <path d="M21 12H9" />
+        </>
+      );
+    case "shield-check":
+      return (
+        <>
+          <path d="M12 3l7 2.8V12c0 4.6-3 8.2-7 9-4-.8-7-4.4-7-9V5.8L12 3z" />
+          <path d="m9 12 2 2 4-4" />
+        </>
+      );
+    case "credit-card":
+      return (
+        <>
+          <rect x="2" y="6" width="20" height="13" rx="2" />
+          <path d="M2 10h20" />
+          <path d="M6 15h4" />
+        </>
+      );
+    case "banknotes":
+      return (
+        <>
+          <rect x="2" y="6" width="20" height="12" rx="2" />
+          <circle cx="12" cy="12" r="2.5" />
+          <path d="M6 12h.01M18 12h.01" />
+        </>
+      );
+    case "qr-code":
+      return (
+        <>
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          <path d="M14 14h3v3h-3zM20 14v3M14 20h6" />
+        </>
+      );
+    case "refresh":
+      return (
+        <>
+          <path d="M1 4v6h6" />
+          <path d="M23 20v-6h-6" />
+          <path d="M20.5 9A9 9 0 0 0 5.2 5.2L1 10M23 14l-4.2 4.8A9 9 0 0 1 3.5 15" />
         </>
       );
     default:

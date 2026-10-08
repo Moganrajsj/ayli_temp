@@ -1,13 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Icon } from "@/components/ui/icons";
 
 export interface GalleryImage {
   url: string;
   alt?: string | null;
+  colour?: string | null;
 }
 
 export interface GalleryProps {
@@ -22,7 +23,19 @@ export interface GalleryProps {
 export function Gallery({ images, className }: GalleryProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
+  const [prevImages, setPrevImages] = useState(images);
   const count = images.length;
+
+  if (images !== prevImages) {
+    setPrevImages(images);
+    setIndex(0);
+  }
+
+  useEffect(() => {
+    if (trackRef.current) {
+      trackRef.current.scrollTo({ left: 0, behavior: "smooth" });
+    }
+  }, [images]);
 
   const handleScroll = () => {
     const el = trackRef.current;

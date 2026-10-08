@@ -121,21 +121,30 @@ export async function createAddress(
 
   const { isDefault, ...data } = parsed.data;
 
-  await prisma.$transaction(async (tx) => {
-    if (isDefault) {
-      await tx.address.updateMany({
-        where: { userId: user.id, isDefault: true },
-        data: { isDefault: false },
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (isDefault) {
+        await tx.address.updateMany({
+          where: { userId: user.id, isDefault: true },
+          data: { isDefault: false },
+        });
+      }
+
+      // If no addresses exist yet, force default
+      const count = await tx.address.count({ where: { userId: user.id } });
+
+      await tx.address.create({
+        data: { ...data, userId: user.id, isDefault: isDefault || count === 0 },
       });
-    }
-
-    // If no addresses exist yet, force default
-    const count = await tx.address.count({ where: { userId: user.id } });
-
-    await tx.address.create({
-      data: { ...data, userId: user.id, isDefault: isDefault || count === 0 },
     });
-  });
+  } catch (err) {
+    console.error("Failed to save address:", err);
+    return {
+      ok: false,
+      message: "Could not save address. Please try again.",
+      fieldErrors: {},
+    };
+  }
 
   redirect("/account/addresses?created=1");
 }
@@ -177,15 +186,24 @@ export async function updateAddress(
   });
   if (!address) return { ok: false, message: "Address not found.", fieldErrors: {} };
 
-  await prisma.$transaction(async (tx) => {
-    if (isDefault) {
-      await tx.address.updateMany({
-        where: { userId: user.id, isDefault: true, NOT: { id } },
-        data: { isDefault: false },
-      });
-    }
-    await tx.address.update({ where: { id }, data: { ...data, isDefault } });
-  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (isDefault) {
+        await tx.address.updateMany({
+          where: { userId: user.id, isDefault: true, NOT: { id } },
+          data: { isDefault: false },
+        });
+      }
+      await tx.address.update({ where: { id }, data: { ...data, isDefault } });
+    });
+  } catch (err) {
+    console.error("Failed to update address:", err);
+    return {
+      ok: false,
+      message: "Could not update address. Please try again.",
+      fieldErrors: {},
+    };
+  }
 
   redirect("/account/addresses?updated=1");
 }

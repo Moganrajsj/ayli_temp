@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getVerifiedAdmin } from "@/lib/admin";
 import {
   getHomepageConfig,
   saveHomepageConfig,
@@ -10,8 +10,7 @@ import {
 } from "@/lib/homepage-config";
 
 async function requireAdmin(): Promise<boolean> {
-  const session = await auth();
-  return Boolean(session?.user?.id && session.user.role === "ADMIN");
+  return Boolean(await getVerifiedAdmin());
 }
 
 export interface AdminActionResult {

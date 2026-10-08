@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { signOutAction } from "@/actions/auth.action";
 import { Icon, type IconName } from "@/components/ui/icons";
 import { formatDate, formatINR } from "@/lib/utils";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
@@ -58,6 +59,33 @@ function QuickLink({
         className="h-4 w-4 shrink-0 text-muted transition-transform group-hover:translate-x-0.5"
       />
     </Link>
+  );
+}
+
+function SignOutButton() {
+  return (
+    <form action={signOutAction}>
+      <button
+        type="submit"
+        className="group flex w-full items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-soft-beige/60 sm:px-5 sm:py-5"
+      >
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-card bg-soft-beige text-ayli-blue">
+          <Icon name="logout" className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-display text-base font-medium uppercase tracking-wide text-ink">
+            Sign out
+          </span>
+          <span className="mt-0.5 block truncate text-sm text-muted">
+            Logout from your account
+          </span>
+        </span>
+        <Icon
+          name="chevron-right"
+          className="h-4 w-4 shrink-0 text-muted transition-transform group-hover:translate-x-0.5"
+        />
+      </button>
+    </form>
   );
 }
 
@@ -241,6 +269,7 @@ export default async function AccountHomePage() {
             {freshUser?.role === "ADMIN" ? (
               <QuickLink href="/admin" icon="briefcase" title="Admin" subtitle="Products, orders & inventory" />
             ) : null}
+            <SignOutButton />
           </div>
         </div>
 

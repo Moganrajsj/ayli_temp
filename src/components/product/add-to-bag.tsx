@@ -16,6 +16,8 @@ export interface AddToBagProps {
   productName: string;
   variants: PdpVariant[];
   basePrice: number;
+  selectedColour?: string | null;
+  onSelectColour?: (colour: string) => void;
   className?: string;
 }
 
@@ -27,12 +29,49 @@ export function AddToBag({
   productName,
   variants,
   basePrice,
+  selectedColour: controlledColour,
+  onSelectColour: setControlledColour,
   className,
 }: AddToBagProps) {
   const { toast } = useToast();
   const { status } = useSession();
-  const [selectedColour, setSelectedColour] = useState<string | null>(null);
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+
+  // Smart Default Color Selection: Find the 1st color tone with available stock.
+  const defaultColour = useMemo(() => {
+    const colours = [...new Set(variants.map((v) => v.colour))];
+    const firstAvailable = colours.find((c) =>
+      variants.some((v) => v.colour === c && v.availability.available)
+    );
+    return firstAvailable ?? colours[0] ?? null;
+  }, [variants]);
+
+  const [internalColour, setInternalColour] = useState<string | null>(defaultColour);
+  const selectedColour = controlledColour !== undefined ? controlledColour : internalColour;
+
+  const handleColourChange = (colour: string) => {
+    setInternalColour(colour);
+    setControlledColour?.(colour);
+  };
+
+  const [rawSelectedSize, setRawSelectedSize] = useState<string | null>(null);
+
+  const availableSizes = useMemo(() => {
+    if (!selectedColour) return [];
+    return variants
+      .filter((v) => v.colour === selectedColour && v.availability.available)
+      .map((v) => v.size);
+  }, [selectedColour, variants]);
+
+  // Derive selected size: if raw is valid for this colour, use it; otherwise use 1st available
+  const selectedSize =
+    rawSelectedSize && availableSizes.includes(rawSelectedSize)
+      ? rawSelectedSize
+      : availableSizes[0] ?? null;
+
+  const setSelectedSize = (size: string | null) => {
+    setRawSelectedSize(size);
+  };
+
   const [quantity, setQuantity] = useState(1);
   const [pending, setPending] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
@@ -86,7 +125,7 @@ export function AddToBag({
         variants={variants}
         selectedColour={selectedColour}
         selectedSize={selectedSize}
-        onSelectColour={setSelectedColour}
+        onSelectColour={handleColourChange}
         onSelectSize={setSelectedSize}
       />
 

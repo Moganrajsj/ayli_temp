@@ -6,7 +6,6 @@ export type MultiFilterKey = Exclude<FilterKey, "price">;
 export const MULTI_KEYS: MultiFilterKey[] = [
   "fabric",
   "pattern",
-  "printType",
   "sleeveType",
   "neckType",
   "length",
@@ -15,6 +14,8 @@ export const MULTI_KEYS: MultiFilterKey[] = [
   "waist",
   "rise",
   "material",
+  "transparency",
+  "stretchability",
   "size",
   "colour",
 ];
@@ -22,7 +23,6 @@ export const MULTI_KEYS: MultiFilterKey[] = [
 export const CONSTANT_KEYS = [
   "fabric",
   "pattern",
-  "printType",
   "sleeveType",
   "neckType",
   "length",
@@ -31,6 +31,8 @@ export const CONSTANT_KEYS = [
   "waist",
   "rise",
   "material",
+  "transparency",
+  "stretchability",
 ] as const satisfies readonly MultiFilterKey[];
 
 export const VARIANT_KEYS = ["size", "colour"] as const satisfies readonly MultiFilterKey[];

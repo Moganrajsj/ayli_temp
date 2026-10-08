@@ -18,7 +18,7 @@ function NewArrivalCard({ product, priority = false }: NewArrivalCardProps) {
   return (
     <Link
       href={`/product/${product.slug}`}
-      className="group relative flex-shrink-0 w-[44vw] sm:w-[32vw] md:w-[22vw] lg:w-[18vw] xl:w-[15vw] focus:outline-none"
+      className="group relative min-w-0 flex-shrink-0 w-[44vw] sm:w-full focus:outline-none"
       aria-label={product.name}
     >
       {/* Image container */}
@@ -29,7 +29,7 @@ function NewArrivalCard({ product, priority = false }: NewArrivalCardProps) {
             alt={product.imageAlt}
             fill
             priority={priority}
-            sizes="(max-width: 640px) 44vw, (max-width: 1024px) 32vw, 18vw"
+            sizes="(max-width: 640px) 44vw, (max-width: 768px) 32vw, (max-width: 1024px) 24vw, (max-width: 1280px) 19vw, 15vw"
             className="object-cover object-top animate-fade-in transition-transform duration-500 ease-out group-hover:scale-[1.04]"
           />
         ) : (
@@ -59,7 +59,7 @@ function NewArrivalCard({ product, priority = false }: NewArrivalCardProps) {
             setWished((v) => !v);
             setPopKey((k) => k + 1);
           }}
-          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm transition-all duration-200 hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ayli-peach"
+          className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm transition-all duration-200 hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ayli-peach"
         >
           <svg
             key={`${String(wished)}-${popKey}`}

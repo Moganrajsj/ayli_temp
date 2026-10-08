@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { Icon } from "@/components/ui/icons";
 
 export interface AccordionItem {
+  id?: string;
   title: string;
   content: ReactNode;
 }
@@ -17,7 +18,11 @@ export function Accordion({ items, className }: AccordionProps) {
   return (
     <div className={cn("border-y border-hairline", className)}>
       {items.map((item) => (
-        <details key={item.title} className="group border-b border-hairline last:border-b-0">
+        <details
+          key={item.title}
+          id={item.id}
+          className="group border-b border-hairline last:border-b-0"
+        >
           <summary
             className="flex cursor-pointer select-none list-none items-center justify-between gap-4 py-4 [&::-webkit-details-marker]:hidden"
           >

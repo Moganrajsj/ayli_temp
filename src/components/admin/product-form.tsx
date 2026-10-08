@@ -6,7 +6,22 @@ import { useRouter } from "next/navigation";
 import { createProductAction, updateProductAction } from "@/actions/admin.action";
 import type { AdminCategoryOption, AdminCollectionOption, AdminProductDetail } from "@/lib/admin";
 import type { AdminActionResult, AdminProductInput } from "@/lib/validation";
-import { COLOUR_SWATCHES, PRODUCT_SIZES } from "@/config/product-options";
+import {
+  COLOUR_SWATCHES,
+  FABRIC_OPTIONS,
+  FIT_OPTIONS,
+  LENGTH_OPTIONS,
+  MATERIAL_OPTIONS,
+  NECK_OPTIONS,
+  OCCASION_OPTIONS,
+  PATTERN_OPTIONS,
+  PRODUCT_SIZES,
+  RISE_OPTIONS,
+  SLEEVE_OPTIONS,
+  STRETCHABILITY_OPTIONS,
+  TRANSPARENCY_OPTIONS,
+  WAIST_OPTIONS,
+} from "@/config/product-options";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/field";
 import { Icon } from "@/components/ui/icons";
@@ -36,29 +51,34 @@ interface ImageRow {
   key: number;
   url: string;
   alt: string;
+  colour: string;
   isMain: boolean;
 }
+
+interface SizeChart {
+  headers: string[];
+  rows: string[][];
+}
+
+const DEFAULT_SIZE_CHART: SizeChart = {
+  headers: ["Size", "Chest", "Waist", "Hips", "Length"],
+  rows: [],
+};
 
 let rowId = 0;
 const nextRow = () => ++rowId;
 
-const FIELD_LABELS: Record<string, string> = {
-  fabric: "Fabric",
-  pattern: "Pattern",
-  printType: "Print type",
-  sleeveType: "Sleeve",
-  neckType: "Neck",
-  length: "Length",
-  fit: "Fit",
-  waist: "Waist",
-  rise: "Rise",
-  occasion: "Occasion",
-  material: "Material",
-  transparency: "Transparency",
-  stretchability: "Stretchability",
-};
-
-const FIELD_KEYS = Object.keys(FIELD_LABELS);
+// Dropdown attribute definitions for extended attributes
+const ATTR_DROPDOWNS: { key: string; label: string; options: readonly string[] }[] = [
+  { key: "length", label: "Length", options: LENGTH_OPTIONS },
+  { key: "fit", label: "Fit", options: FIT_OPTIONS },
+  { key: "waist", label: "Waist", options: WAIST_OPTIONS },
+  { key: "rise", label: "Rise", options: RISE_OPTIONS },
+  { key: "occasion", label: "Occasion", options: OCCASION_OPTIONS },
+  { key: "material", label: "Material", options: MATERIAL_OPTIONS },
+  { key: "transparency", label: "Transparency", options: TRANSPARENCY_OPTIONS },
+  { key: "stretchability", label: "Stretchability", options: STRETCHABILITY_OPTIONS },
+];
 
 function emptyVariant(skuPrefix = ""): VariantRow {
   return {
@@ -75,7 +95,16 @@ function emptyVariant(skuPrefix = ""): VariantRow {
 }
 
 function emptyImage(): ImageRow {
-  return { key: nextRow(), url: "", alt: "", isMain: false };
+  return { key: nextRow(), url: "", alt: "", colour: "", isMain: false };
+}
+
+function parseSizeChart(raw: string | null | undefined): SizeChart {
+  if (!raw) return DEFAULT_SIZE_CHART;
+  try {
+    const parsed = JSON.parse(raw) as SizeChart;
+    if (Array.isArray(parsed.headers) && Array.isArray(parsed.rows)) return parsed;
+  } catch {}
+  return DEFAULT_SIZE_CHART;
 }
 
 export function ProductForm({ mode, productId, initial, categories, collections }: ProductFormProps) {
@@ -94,7 +123,6 @@ export function ProductForm({ mode, productId, initial, categories, collections 
           description: initial.description ?? "",
           mrp: String(initial.mrp),
           sellingPrice: String(initial.sellingPrice),
-          costPrice: initial.costPrice != null ? String(initial.costPrice) : "",
           taxRate: String(initial.taxRate),
           countryOfOrigin: initial.countryOfOrigin,
           sizeChartUrl: initial.sizeChartUrl ?? "",
@@ -117,7 +145,6 @@ export function ProductForm({ mode, productId, initial, categories, collections 
           description: "",
           mrp: "",
           sellingPrice: "",
-          costPrice: "",
           taxRate: "0",
           countryOfOrigin: "India",
           sizeChartUrl: "",
@@ -130,26 +157,85 @@ export function ProductForm({ mode, productId, initial, categories, collections 
         },
   );
 
+  // Dropdown attributes
+  const [fabric, setFabric] = useState(initial?.fabric ?? "");
+  const [pattern, setPattern] = useState(initial?.pattern ?? "");
+  const [sleeveType, setSleeveType] = useState(initial?.sleeveType ?? "");
+  const [neckType, setNeckType] = useState(initial?.neckType ?? "");
+
+  // Dropdown attributes state
   const [attrs, setAttrs] = useState<Record<string, string>>(() => {
     const base: Record<string, string> = {};
-    for (const key of FIELD_KEYS) base[key] = "";
+    for (const item of ATTR_DROPDOWNS) base[item.key] = "";
     if (initial) {
-      for (const key of FIELD_KEYS) base[key] = String((initial as unknown as Record<string, unknown>)[key] ?? "");
+      for (const item of ATTR_DROPDOWNS) {
+        base[item.key] = String((initial as unknown as Record<string, unknown>)[item.key] ?? "");
+      }
     }
     return base;
   });
 
+  // Discount % field — computed from initial MRP / sellingPrice
+  const [discountPct, setDiscountPct] = useState<string>(() => {
+    const mrp = Number(initial?.mrp ?? 0);
+    const sp = Number(initial?.sellingPrice ?? 0);
+    if (mrp > 0 && sp > 0 && sp < mrp) {
+      return String(Math.round(((mrp - sp) / mrp) * 100));
+    }
+    return "";
+  });
+
+  const handleMrpChange = (val: string) => {
+    setForm((f) => {
+      const mrp = Number(val);
+      const pct = Number(discountPct);
+      const nextSp = mrp > 0 && pct > 0 && pct < 100
+        ? String(Math.round(mrp * (1 - pct / 100)))
+        : f.sellingPrice;
+      return { ...f, mrp: val, sellingPrice: nextSp };
+    });
+  };
+
+  const handleDiscountChange = (val: string) => {
+    setDiscountPct(val);
+    const mrp = Number(form.mrp);
+    const pct = Number(val);
+    if (mrp > 0 && pct >= 0 && pct < 100) {
+      setForm((f) => ({ ...f, sellingPrice: String(Math.round(mrp * (1 - pct / 100))) }));
+    }
+  };
+
+  const handleSellingPriceChange = (val: string) => {
+    setForm((f) => ({ ...f, sellingPrice: val }));
+    const mrp = Number(form.mrp);
+    const sp = Number(val);
+    if (mrp > 0 && sp > 0 && sp <= mrp) {
+      setDiscountPct(String(Math.round(((mrp - sp) / mrp) * 100)));
+    } else {
+      setDiscountPct("");
+    }
+  };
+
+  // Size chart state
+  const [sizeChart, setSizeChart] = useState<SizeChart>(() =>
+    parseSizeChart(initial?.sizeChartData),
+  );
+
+  // No seeded blank row: uploading via drag & drop must not leave a phantom empty
+  // image behind (blank rows are dropped again in buildPayload).
   const [images, setImages] = useState<ImageRow[]>(() =>
-    initial && initial.images.length > 0
-      ? initial.images.map((img) => ({ key: nextRow(), url: img.url, alt: img.alt ?? "", isMain: img.isMain }))
-      : [emptyImage()],
+    initial
+      ? initial.images.map((img) => ({ key: nextRow(), url: img.url, alt: img.alt ?? "", colour: img.colour ?? "", isMain: img.isMain }))
+      : [],
   );
 
   const [uploadQueue, setUploadQueue] = useState<{ id: number; name: string }[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [dragActive, setDragActive] = useState(false);
+  const [dragActiveMain, setDragActiveMain] = useState(false);
+  const [dragActiveOther, setDragActiveOther] = useState(false);
   const [dragImageKey, setDragImageKey] = useState<number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const mainFileInputRef = useRef<HTMLInputElement | null>(null);
+  const otherFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [variants, setVariants] = useState<VariantRow[]>(() =>
     initial && initial.variants.length > 0
@@ -186,7 +272,7 @@ export function ProductForm({ mode, productId, initial, categories, collections 
     return cat?.subcategories ?? [];
   }, [categories, form.categoryId]);
 
-  const discount = useMemo(() => {
+  const displayDiscount = useMemo(() => {
     const mrp = Number(form.mrp);
     const sp = Number(form.sellingPrice);
     if (!mrp || !sp || sp > mrp) return null;
@@ -197,6 +283,11 @@ export function ProductForm({ mode, productId, initial, categories, collections 
     () => variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0),
     [variants],
   );
+
+  const availableColours = useMemo(() => {
+    const list = variants.map((v) => v.colour.trim()).filter(Boolean);
+    return [...new Set(list)];
+  }, [variants]);
 
   function onNameChange(value: string) {
     setForm((f) => ({
@@ -274,7 +365,7 @@ export function ProductForm({ mode, productId, initial, categories, collections 
     setVariants((vs) => vs.map((v) => ({ ...v, stock: String(Math.floor(value)) })));
   }
 
-  async function uploadFiles(fileList: FileList | File[]) {
+  async function uploadFiles(fileList: FileList | File[], options?: { isMain?: boolean }) {
     const files = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
     if (files.length === 0) return;
     setUploadError(null);
@@ -283,6 +374,8 @@ export function ProductForm({ mode, productId, initial, categories, collections 
       ...q,
       ...files.map((f, i) => ({ id: ids[i], name: f.name })),
     ]);
+
+    const uploaded: Array<{ key: number; url: string }> = [];
     for (let i = 0; i < files.length; i++) {
       const formData = new FormData();
       formData.append("files", files[i]);
@@ -294,11 +387,7 @@ export function ProductForm({ mode, productId, initial, categories, collections 
           error?: string;
         };
         if (res.ok && data.ok && data.files && data.files.length > 0) {
-          const uploaded = data.files[0];
-          setImages((imgs) => [
-            ...imgs,
-            { key: ids[i], url: uploaded.url, alt: "", isMain: imgs.length === 0 },
-          ]);
+          uploaded.push({ key: ids[i], url: data.files[0].url });
         } else {
           setUploadError((e) => e ?? data.error ?? `"${files[i].name}" could not be uploaded.`);
         }
@@ -308,6 +397,43 @@ export function ProductForm({ mode, productId, initial, categories, collections 
         setUploadQueue((q) => q.filter((x) => x.id !== ids[i]));
       }
     }
+
+    if (uploaded.length === 0) return;
+    setImages((imgs) => {
+      const kept = imgs.filter((img) => img.url.trim());
+      if (options?.isMain) {
+        // Uploaded into Main Image slot: the first file becomes the primary cover at index 0
+        const [firstMain, ...restUploaded] = uploaded;
+        const newMainRow: ImageRow = {
+          key: firstMain.key,
+          url: firstMain.url,
+          alt: "",
+          colour: "",
+          isMain: true,
+        };
+        const restRows: ImageRow[] = restUploaded.map((u) => ({
+          key: u.key,
+          url: u.url,
+          alt: "",
+          colour: "",
+          isMain: false,
+        }));
+        // Existing images demoted from main
+        const existingDemoted = kept.map((img) => ({ ...img, isMain: false }));
+        return [newMainRow, ...existingDemoted, ...restRows];
+      } else {
+        // Uploaded into Other Images slot: append to gallery
+        const hasExistingMain = kept.some((img) => img.isMain);
+        const newRows: ImageRow[] = uploaded.map((u, i) => ({
+          key: u.key,
+          url: u.url,
+          alt: "",
+          colour: "",
+          isMain: !hasExistingMain && kept.length === 0 && i === 0,
+        }));
+        return [...kept, ...newRows];
+      }
+    });
   }
 
   function moveImage(fromKey: number, toKey: number) {
@@ -318,7 +444,11 @@ export function ProductForm({ mode, productId, initial, categories, collections 
       const reordered = [...imgs];
       const [moved] = reordered.splice(from, 1);
       reordered.splice(to, 0, moved);
-      return reordered;
+      // Index 0 always stays as main
+      return reordered.map((img, idx) => ({
+        ...img,
+        isMain: idx === 0,
+      }));
     });
   }
 
@@ -327,21 +457,65 @@ export function ProductForm({ mode, productId, initial, categories, collections 
   }
 
   function updateImage(key: number, patch: Partial<ImageRow>) {
-    setImages((imgs) =>
-      imgs.map((img) => {
-        if (img.key !== key) return img;
-        const next = { ...img, ...patch };
-        if (patch.isMain) {
-          return next;
-        }
-        return next;
-      }),
-    );
     if (patch.isMain) {
+      setImages((imgs) => {
+        const target = imgs.find((img) => img.key === key);
+        if (!target) return imgs;
+        const rest = imgs.filter((img) => img.key !== key).map((img) => ({ ...img, isMain: false }));
+        return [{ ...target, ...patch, isMain: true }, ...rest];
+      });
+    } else {
       setImages((imgs) =>
-        imgs.map((img) => (img.key === key ? { ...img, isMain: true } : { ...img, isMain: false })),
+        imgs.map((img) => (img.key === key ? { ...img, ...patch } : img)),
       );
     }
+  }
+
+  // ── Size chart helpers ──────────────────────────────────────────────────────
+  function updateChartHeader(colIdx: number, value: string) {
+    setSizeChart((sc) => {
+      const headers = [...sc.headers];
+      headers[colIdx] = value;
+      return { ...sc, headers };
+    });
+  }
+
+  function addChartColumn() {
+    setSizeChart((sc) => ({
+      headers: [...sc.headers, `Col ${sc.headers.length + 1}`],
+      rows: sc.rows.map((row) => [...row, ""]),
+    }));
+  }
+
+  function removeChartColumn(colIdx: number) {
+    if (sizeChart.headers.length <= 1) return;
+    setSizeChart((sc) => ({
+      headers: sc.headers.filter((_, i) => i !== colIdx),
+      rows: sc.rows.map((row) => row.filter((_, i) => i !== colIdx)),
+    }));
+  }
+
+  function addChartRow() {
+    setSizeChart((sc) => ({
+      ...sc,
+      rows: [...sc.rows, Array(sc.headers.length).fill("") as string[]],
+    }));
+  }
+
+  function removeChartRow(rowIdx: number) {
+    setSizeChart((sc) => ({
+      ...sc,
+      rows: sc.rows.filter((_, i) => i !== rowIdx),
+    }));
+  }
+
+  function updateChartCell(rowIdx: number, colIdx: number, value: string) {
+    setSizeChart((sc) => {
+      const rows = sc.rows.map((row, ri) =>
+        ri === rowIdx ? row.map((cell, ci) => (ci === colIdx ? value : cell)) : row,
+      );
+      return { ...sc, rows };
+    });
   }
 
   function buildPayload(): AdminProductInput {
@@ -357,21 +531,27 @@ export function ProductForm({ mode, productId, initial, categories, collections 
       description: form.description.trim() || null,
       mrp: Number(form.mrp),
       sellingPrice: Number(form.sellingPrice),
-      costPrice: form.costPrice ? Number(form.costPrice) : null,
+      costPrice: null,
       taxRate: Number(form.taxRate || 0),
       countryOfOrigin: form.countryOfOrigin.trim() || "India",
-      sizeChartUrl: form.sizeChartUrl.trim() || null,
+      sizeChartUrl: null,
+      sizeChartData:
+        sizeChart.headers.length > 0 || sizeChart.rows.length > 0
+          ? JSON.stringify(sizeChart)
+          : null,
       modelInfo: form.modelInfo.trim() || null,
       garmentMeasurements: form.garmentMeasurements.trim() || null,
       productMeasurements: form.productMeasurements.trim() || null,
       washCare: form.washCare.trim() || null,
       isActive: form.isActive,
       isFeatured: form.isFeatured,
-      fabric: attrs.fabric.trim() || null,
-      pattern: attrs.pattern.trim() || null,
-      printType: attrs.printType.trim() || null,
-      sleeveType: attrs.sleeveType.trim() || null,
-      neckType: attrs.neckType.trim() || null,
+      // Dropdown attributes
+      fabric: fabric.trim() || null,
+      pattern: pattern.trim() || null,
+      printType: null,
+      sleeveType: sleeveType.trim() || null,
+      neckType: neckType.trim() || null,
+      // Free text attributes
       length: attrs.length.trim() || null,
       fit: attrs.fit.trim() || null,
       waist: attrs.waist.trim() || null,
@@ -380,12 +560,15 @@ export function ProductForm({ mode, productId, initial, categories, collections 
       material: attrs.material.trim() || null,
       transparency: attrs.transparency.trim() || null,
       stretchability: attrs.stretchability.trim() || null,
-      images: images.map((img, i) => ({
-        url: img.url.trim(),
-        alt: img.alt.trim() || "",
-        isMain: img.isMain || i === 0,
-        sortOrder: i,
-      })),
+      images: images
+        .filter((img) => img.url.trim())
+        .map((img, i) => ({
+          url: img.url.trim(),
+          alt: img.alt.trim() || "",
+          colour: img.colour.trim() || null,
+          isMain: img.isMain || i === 0,
+          sortOrder: i,
+        })),
       variants: variants.map((v) => ({
         colour: v.colour.trim(),
         colourHex: v.colourHex.trim() || null,
@@ -402,6 +585,10 @@ export function ProductForm({ mode, productId, initial, categories, collections 
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (uploadQueue.length > 0) {
+      setResult({ ok: false, message: "Please wait for the images to finish uploading." });
+      return;
+    }
     setPending(true);
     const payload = buildPayload();
     const res = mode === "create" ? await createProductAction(payload) : await updateProductAction(productId!, payload);
@@ -412,16 +599,44 @@ export function ProductForm({ mode, productId, initial, categories, collections 
       if (mode === "create" && res.id) {
         router.push(`/admin/products/${res.id}/edit`);
       }
+    } else {
+      // Scroll to top so the error banner is visible
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }
 
-  const errorText = result && !result.ok ? (result.message ?? "Please review the highlighted fields.") : null;
+  // Shorthand accessor for field errors
+  const fe = result?.fieldErrors ?? {};
+  const hasErrors = result && !result.ok;
+
+  // Derive which sections have errors to highlight their borders
+  const basicFields = ["name", "slug", "sku", "brand", "productType", "categoryId", "subcategoryId"];
+  const pricingFields = ["mrp", "sellingPrice", "taxRate"];
+  const descriptionFields = ["shortDescription", "description", "washCare", "modelInfo", "garmentMeasurements", "productMeasurements", "countryOfOrigin"];
+  const hasBasicError = basicFields.some((f) => !!fe[f]);
+  const hasPricingError = pricingFields.some((f) => !!fe[f]);
+  const hasDescriptionError = descriptionFields.some((f) => !!fe[f]);
+  const hasImageError = !!fe["images"] || Object.keys(fe).some((k) => k.startsWith("images."));
+  const hasVariantError = !!fe["variants"] || Object.keys(fe).some((k) => k.startsWith("variants."));
+
+  // Collect human-readable error list for the banner
+  const errorEntries = Object.entries(fe);
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      {errorText ? (
-        <div role="alert" className="rounded-card border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
-          {errorText}
+      {hasErrors ? (
+        <div role="alert" className="rounded-card border border-danger/40 bg-danger/5 px-4 py-4 text-sm text-danger">
+          <p className="mb-2 font-semibold">{result.message ?? "Please fix the errors below."}</p>
+          {errorEntries.length > 0 ? (
+            <ul className="ml-4 list-disc space-y-1">
+              {errorEntries.map(([field, msg]) => (
+                <li key={field}>
+                  <span className="font-medium capitalize">{field.replace(/\./g, " › ").replace(/_/g, " ")}:</span>{" "}
+                  {msg}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       ) : null}
       {result?.ok ? (
@@ -431,20 +646,25 @@ export function ProductForm({ mode, productId, initial, categories, collections 
       ) : null}
 
       {/* Basics */}
-      <section className="rounded-card border border-hairline bg-warm-white p-5 shadow-soft">
-        <h2 className="mb-4 font-display text-lg font-semibold tracking-tight text-ink">Basics</h2>
+      <section className={cn("rounded-card border bg-warm-white p-5 shadow-soft", hasBasicError ? "border-danger/50 ring-1 ring-danger/20" : "border-hairline")}>
+        <h2 className="mb-4 font-display text-lg font-semibold tracking-tight text-ink">
+          Basics
+          {hasBasicError ? <span className="ml-2 text-sm font-normal text-danger">— fix errors below</span> : null}
+        </h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Input label="Product name" required value={form.name} onChange={(e) => onNameChange(e.target.value)} />
+          <Input label="Product name" required value={form.name} error={fe.name} onChange={(e) => { onNameChange(e.target.value); if (fe.name) setResult(null); }} />
           <Input
             label="Slug"
-            hint="Used in the storefront URL."
+            hint={fe.slug ? undefined : "Used in the storefront URL."}
+            error={fe.slug}
             value={form.slug}
             onChange={(e) => {
               autogenSlug.current = false;
               set("slug", slugify(e.target.value));
+              if (fe.slug) setResult(null);
             }}
           />
-          <Input label="Product SKU" required value={form.sku} onChange={(e) => set("sku", e.target.value)} />
+          <Input label="Product SKU" required value={form.sku} error={fe.sku} onChange={(e) => { set("sku", e.target.value); if (fe.sku) setResult(null); }} />
           <div className="grid grid-cols-2 gap-4">
             <Input label="Brand" value={form.brand} onChange={(e) => set("brand", e.target.value)} />
             <Input
@@ -454,7 +674,7 @@ export function ProductForm({ mode, productId, initial, categories, collections 
               onChange={(e) => set("productType", e.target.value)}
             />
           </div>
-          <Select label="Category" required value={form.categoryId} onChange={(e) => set("categoryId", e.target.value)}>
+          <Select label="Category" required value={form.categoryId} error={fe.categoryId} onChange={(e) => { set("categoryId", e.target.value); if (fe.categoryId) setResult(null); }}>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -491,17 +711,59 @@ export function ProductForm({ mode, productId, initial, categories, collections 
       </section>
 
       {/* Pricing */}
-      <section className="rounded-card border border-hairline bg-warm-white p-5 shadow-soft">
-        <h2 className="mb-4 font-display text-lg font-semibold tracking-tight text-ink">Pricing</h2>
+      <section className={cn("rounded-card border bg-warm-white p-5 shadow-soft", hasPricingError ? "border-danger/50 ring-1 ring-danger/20" : "border-hairline")}>
+        <h2 className="mb-4 font-display text-lg font-semibold tracking-tight text-ink">
+          Pricing
+          {hasPricingError ? <span className="ml-2 text-sm font-normal text-danger">— fix errors below</span> : null}
+        </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <Input label="MRP (₹)" required type="number" min="0" step="1" value={form.mrp} onChange={(e) => set("mrp", e.target.value)} />
-          <Input label="Selling price (₹)" required type="number" min="0" step="1" value={form.sellingPrice} onChange={(e) => set("sellingPrice", e.target.value)} />
-          <Input label="Cost price (₹)" type="number" min="0" step="1" value={form.costPrice} onChange={(e) => set("costPrice", e.target.value)} />
-          <Input label="Tax rate (%)" type="number" min="0" max="100" step="0.01" value={form.taxRate} onChange={(e) => set("taxRate", e.target.value)} />
+          <Input
+            label="MRP (₹)"
+            required
+            type="number"
+            min="0"
+            step="1"
+            value={form.mrp}
+            error={fe.mrp}
+            onChange={(e) => { handleMrpChange(e.target.value); if (fe.mrp) setResult(null); }}
+          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-ink">Discount (%)</label>
+            <input
+              type="number"
+              min="0"
+              max="99"
+              step="1"
+              value={discountPct}
+              onChange={(e) => handleDiscountChange(e.target.value)}
+              placeholder="e.g. 20"
+              className="h-11 rounded-card border border-hairline bg-warm-white px-4 text-[15px] text-ink placeholder:text-muted/70 focus:border-ayli-blue focus:outline-none"
+            />
+          </div>
+          <Input
+            label="Selling price (₹)"
+            required
+            type="number"
+            min="0"
+            step="1"
+            value={form.sellingPrice}
+            error={fe.sellingPrice}
+            onChange={(e) => { handleSellingPriceChange(e.target.value); if (fe.sellingPrice) setResult(null); }}
+          />
+          <Input
+            label="Tax rate (%)"
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            value={form.taxRate}
+            error={fe.taxRate}
+            onChange={(e) => { set("taxRate", e.target.value); if (fe.taxRate) setResult(null); }}
+          />
           <div className="flex items-end pb-2 text-sm">
-            {discount !== null && discount > 0 ? (
+            {displayDiscount !== null && displayDiscount > 0 ? (
               <span className="rounded-pill bg-success/10 px-2.5 py-1 font-semibold text-success">
-                {discount}% off
+                {displayDiscount}% off
               </span>
             ) : (
               <span className="text-muted">No discount</span>
@@ -517,34 +779,208 @@ export function ProductForm({ mode, productId, initial, categories, collections 
           Structured values power the storefront&apos;s filters and search.
         </p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FIELD_KEYS.map((key) => (
-            <Input
-              key={key}
-              label={FIELD_LABELS[key]}
-              value={attrs[key]}
-              onChange={(e) => setAttrs((a) => ({ ...a, [key]: e.target.value }))}
-            />
-          ))}
+          {/* Fabric */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-ink">Fabric</label>
+            <select
+              value={fabric}
+              onChange={(e) => setFabric(e.target.value)}
+              className="h-11 rounded-card border border-hairline bg-warm-white px-3 text-[15px] text-ink focus:border-ayli-blue focus:outline-none"
+            >
+              <option value="">— Select —</option>
+              {fabric && !(FABRIC_OPTIONS as readonly string[]).includes(fabric) ? (
+                <option value={fabric}>{fabric}</option>
+              ) : null}
+              {FABRIC_OPTIONS.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+          </div>
+          {/* Pattern */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-ink">Pattern</label>
+            <select
+              value={pattern}
+              onChange={(e) => setPattern(e.target.value)}
+              className="h-11 rounded-card border border-hairline bg-warm-white px-3 text-[15px] text-ink focus:border-ayli-blue focus:outline-none"
+            >
+              <option value="">— Select —</option>
+              {pattern && !(PATTERN_OPTIONS as readonly string[]).includes(pattern) ? (
+                <option value={pattern}>{pattern}</option>
+              ) : null}
+              {PATTERN_OPTIONS.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+          </div>
+          {/* Sleeve */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-ink">Sleeve</label>
+            <select
+              value={sleeveType}
+              onChange={(e) => setSleeveType(e.target.value)}
+              className="h-11 rounded-card border border-hairline bg-warm-white px-3 text-[15px] text-ink focus:border-ayli-blue focus:outline-none"
+            >
+              <option value="">— Select —</option>
+              {sleeveType && !(SLEEVE_OPTIONS as readonly string[]).includes(sleeveType) ? (
+                <option value={sleeveType}>{sleeveType}</option>
+              ) : null}
+              {SLEEVE_OPTIONS.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+          </div>
+          {/* Neck */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-ink">Neck</label>
+            <select
+              value={neckType}
+              onChange={(e) => setNeckType(e.target.value)}
+              className="h-11 rounded-card border border-hairline bg-warm-white px-3 text-[15px] text-ink focus:border-ayli-blue focus:outline-none"
+            >
+              <option value="">— Select —</option>
+              {neckType && !(NECK_OPTIONS as readonly string[]).includes(neckType) ? (
+                <option value={neckType}>{neckType}</option>
+              ) : null}
+              {NECK_OPTIONS.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+          </div>
+          {/* Length, Fit, Waist, Rise, Occasion, Material, Transparency, Stretchability */}
+          {ATTR_DROPDOWNS.map(({ key, label, options }) => {
+            const currentValue = attrs[key] || "";
+            const hasCustom = currentValue && !(options as readonly string[]).includes(currentValue);
+            return (
+              <div key={key} className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-ink">{label}</label>
+                <select
+                  value={currentValue}
+                  onChange={(e) => setAttrs((a) => ({ ...a, [key]: e.target.value }))}
+                  className="h-11 rounded-card border border-hairline bg-warm-white px-3 text-[15px] text-ink focus:border-ayli-blue focus:outline-none"
+                >
+                  <option value="">— Select —</option>
+                  {hasCustom ? (
+                    <option value={currentValue}>{currentValue}</option>
+                  ) : null}
+                  {options.map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
         </div>
       </section>
 
-      {/* Description */}
+      {/* Size Chart */}
       <section className="rounded-card border border-hairline bg-warm-white p-5 shadow-soft">
-        <h2 className="mb-4 font-display text-lg font-semibold tracking-tight text-ink">Description & care</h2>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-lg font-semibold tracking-tight text-ink">Size Chart</h2>
+            <p className="mt-1 text-sm text-muted">
+              Add measurement columns and rows. All values are editable inline.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" variant="secondary" size="sm" onClick={addChartColumn}>
+              <Icon name="plus" className="h-4 w-4" />
+              Add Column
+            </Button>
+            <Button type="button" variant="secondary" size="sm" onClick={addChartRow}>
+              <Icon name="plus" className="h-4 w-4" />
+              Add Row
+            </Button>
+          </div>
+        </div>
+
+        {sizeChart.headers.length === 0 && sizeChart.rows.length === 0 ? (
+          <div className="rounded-card bg-soft-beige/60 px-4 py-6 text-center text-sm text-muted">
+            No size chart yet.{" "}
+            <button
+              type="button"
+              onClick={() => setSizeChart(DEFAULT_SIZE_CHART)}
+              className="font-medium text-ayli-blue underline-offset-2 hover:underline"
+            >
+              Load defaults
+            </button>{" "}
+            or use the buttons above to add columns and rows.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-hairline">
+                  {sizeChart.headers.map((header, colIdx) => (
+                    <th key={colIdx} className="px-2 py-2">
+                      <div className="flex items-center gap-1">
+                        <input
+                          value={header}
+                          onChange={(e) => updateChartHeader(colIdx, e.target.value)}
+                          className="h-9 w-full min-w-20 rounded-md border border-hairline bg-soft-beige/60 px-2 text-xs font-semibold uppercase tracking-wide text-ink focus:border-ayli-blue focus:outline-none"
+                        />
+                        {sizeChart.headers.length > 1 ? (
+                          <button
+                            type="button"
+                            title="Remove column"
+                            onClick={() => removeChartColumn(colIdx)}
+                            className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-danger hover:bg-danger/10"
+                          >
+                            <Icon name="trash" className="h-3.5 w-3.5" />
+                          </button>
+                        ) : null}
+                      </div>
+                    </th>
+                  ))}
+                  <th className="w-8 px-2 py-2" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-hairline/70">
+                {sizeChart.rows.map((row, rowIdx) => (
+                  <tr key={rowIdx} className="hover:bg-soft-beige/30">
+                    {row.map((cell, colIdx) => (
+                      <td key={colIdx} className="px-2 py-1.5">
+                        <input
+                          value={cell}
+                          onChange={(e) => updateChartCell(rowIdx, colIdx, e.target.value)}
+                          className="h-9 w-full min-w-16 rounded-md border border-hairline bg-warm-white px-2 text-sm text-ink focus:border-ayli-blue focus:outline-none"
+                        />
+                      </td>
+                    ))}
+                    <td className="px-2 py-1.5">
+                      <button
+                        type="button"
+                        title="Remove row"
+                        onClick={() => removeChartRow(rowIdx)}
+                        className="grid h-8 w-8 place-items-center rounded-md text-danger hover:bg-danger/10"
+                      >
+                        <Icon name="trash" className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Description */}
+      <section className={cn("rounded-card border bg-warm-white p-5 shadow-soft", hasDescriptionError ? "border-danger/50 ring-1 ring-danger/20" : "border-hairline")}>
+        <h2 className="mb-4 font-display text-lg font-semibold tracking-tight text-ink">Description &amp; care</h2>
         <div className="flex flex-col gap-4">
-          <Textarea label="Short description" rows={2} maxLength={500} value={form.shortDescription} onChange={(e) => set("shortDescription", e.target.value)} />
-          <Textarea label="Full description" rows={5} value={form.description} onChange={(e) => set("description", e.target.value)} />
-          <Textarea label="Wash / care instructions" rows={3} value={form.washCare} onChange={(e) => set("washCare", e.target.value)} />
-          <Input label="Size chart URL" value={form.sizeChartUrl} onChange={(e) => set("sizeChartUrl", e.target.value)} />
-          <Input label="Model info" hint='e.g. "Model wears M, 5 tall"' value={form.modelInfo} onChange={(e) => set("modelInfo", e.target.value)} />
-          <Textarea label="Garment measurements" rows={3} value={form.garmentMeasurements} onChange={(e) => set("garmentMeasurements", e.target.value)} />
-          <Textarea label="Product measurements" rows={3} value={form.productMeasurements} onChange={(e) => set("productMeasurements", e.target.value)} />
-          <Input label="Country of origin" value={form.countryOfOrigin} onChange={(e) => set("countryOfOrigin", e.target.value)} />
+          <Textarea label="Short description" rows={2} maxLength={500} value={form.shortDescription} error={fe.shortDescription} onChange={(e) => set("shortDescription", e.target.value)} />
+          <Textarea label="Full description" rows={5} value={form.description} error={fe.description} onChange={(e) => set("description", e.target.value)} />
+          <Textarea label="Wash / care instructions" rows={3} value={form.washCare} error={fe.washCare} onChange={(e) => set("washCare", e.target.value)} />
+          <Input label="Model info" hint={fe.modelInfo ? undefined : 'e.g. "Model wears M, 5\' tall"'} error={fe.modelInfo} value={form.modelInfo} onChange={(e) => set("modelInfo", e.target.value)} />
+          <Textarea label="Garment measurements" rows={3} value={form.garmentMeasurements} error={fe.garmentMeasurements} onChange={(e) => set("garmentMeasurements", e.target.value)} />
+          <Textarea label="Product measurements" rows={3} value={form.productMeasurements} error={fe.productMeasurements} onChange={(e) => set("productMeasurements", e.target.value)} />
+          <Input label="Country of origin" value={form.countryOfOrigin} error={fe.countryOfOrigin} onChange={(e) => set("countryOfOrigin", e.target.value)} />
         </div>
       </section>
 
       {/* Images */}
-      <section className="rounded-card border border-hairline bg-warm-white p-5 shadow-soft">
+      <section className={cn("rounded-card border bg-warm-white p-5 shadow-soft", hasImageError ? "border-danger/50 ring-1 ring-danger/20" : "border-hairline")}>
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-lg font-semibold tracking-tight text-ink">Images</h2>
@@ -559,55 +995,152 @@ export function ProductForm({ mode, productId, initial, categories, collections 
           </Button>
         </div>
 
-        <div
-          role="button"
-          tabIndex={0}
-          aria-label="Upload product images"
-          onClick={() => fileInputRef.current?.click()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
-          }}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragActive(true);
-          }}
-          onDragLeave={() => setDragActive(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragActive(false);
-            if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
-          }}
-          onPaste={(e) => {
-            if (e.clipboardData.files.length) uploadFiles(e.clipboardData.files);
-          }}
-          className={cn(
-            "cursor-pointer rounded-card border-2 border-dashed px-6 py-8 text-center transition-colors",
-            dragActive
-              ? "border-ayli-blue bg-ayli-blue/5"
-              : "border-hairline bg-soft-beige/40 hover:border-ayli-blue/50",
-          )}
-        >
-          <Icon name="box" className="mx-auto h-8 w-8 text-ayli-blue/50" />
-          <p className="mt-2 font-medium text-ink">Drag &amp; drop images here</p>
-          <p className="mt-1 text-sm text-muted">
-            or click to browse · paste from clipboard · JPG, PNG, WebP or GIF up to 8 MB
-          </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files) uploadFiles(e.target.files);
-              e.target.value = "";
-            }}
-          />
+        {/* Upload dropzones: 1st Main Image, Next Other Images */}
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* 1. Main Image Upload (1st) */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ayli-blue text-xs font-bold text-white shadow-sm">
+                  1
+                </span>
+                <span className="font-semibold text-ink text-sm">Main Image (Upload 1st)</span>
+              </div>
+              <span className="rounded-pill bg-ayli-blue/10 px-2.5 py-0.5 text-[11px] font-semibold text-ayli-blue">
+                Storefront Cover
+              </span>
+            </div>
+            <p className="text-xs text-muted">
+              Primary product cover displayed on storefront catalog, search &amp; cards.
+            </p>
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="Upload main image (1st)"
+              onClick={() => mainFileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") mainFileInputRef.current?.click();
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragActiveMain(true);
+              }}
+              onDragLeave={() => setDragActiveMain(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragActiveMain(false);
+                if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files, { isMain: true });
+              }}
+              onPaste={(e) => {
+                if (e.clipboardData.files.length) uploadFiles(e.clipboardData.files, { isMain: true });
+              }}
+              className={cn(
+                "group cursor-pointer rounded-card border-2 border-dashed px-4 py-8 text-center transition-all",
+                dragActiveMain
+                  ? "border-ayli-blue bg-ayli-blue/10 scale-[1.01]"
+                  : "border-ayli-blue/50 bg-ayli-blue/[0.03] hover:border-ayli-blue hover:bg-ayli-blue/5",
+              )}
+            >
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-ayli-blue/15 text-ayli-blue transition-transform group-hover:scale-110">
+                <Icon name="star" className="h-5 w-5" solid />
+              </div>
+              <p className="mt-2 text-sm font-semibold text-ink">
+                Drag &amp; drop Main Image here
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                or click to browse · sets as 1st product cover image
+              </p>
+              <input
+                ref={mainFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) uploadFiles(e.target.files, { isMain: true });
+                  e.target.value = "";
+                }}
+              />
+            </div>
+          </div>
+
+          {/* 2. Other Images Upload (Next) */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-charcoal text-xs font-bold text-white shadow-sm">
+                  2
+                </span>
+                <span className="font-semibold text-ink text-sm">Other Images (Upload Next)</span>
+              </div>
+              <span className="rounded-pill bg-soft-beige px-2.5 py-0.5 text-[11px] font-semibold text-muted">
+                Gallery &amp; Angles
+              </span>
+            </div>
+            <p className="text-xs text-muted">
+              Add more views: back, sides, model close-ups, fabric texture (multi-select).
+            </p>
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="Upload other images (next)"
+              onClick={() => otherFileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") otherFileInputRef.current?.click();
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragActiveOther(true);
+              }}
+              onDragLeave={() => setDragActiveOther(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragActiveOther(false);
+                if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files, { isMain: false });
+              }}
+              onPaste={(e) => {
+                if (e.clipboardData.files.length) uploadFiles(e.clipboardData.files, { isMain: false });
+              }}
+              className={cn(
+                "group cursor-pointer rounded-card border-2 border-dashed px-4 py-8 text-center transition-all",
+                dragActiveOther
+                  ? "border-charcoal bg-charcoal/10 scale-[1.01]"
+                  : "border-hairline bg-soft-beige/40 hover:border-ink/50 hover:bg-soft-beige/70",
+              )}
+            >
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-soft-beige text-ink/70 transition-transform group-hover:scale-110">
+                <Icon name="box" className="h-5 w-5" />
+              </div>
+              <p className="mt-2 text-sm font-semibold text-ink">
+                Drag &amp; drop Other Images here
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                or click to browse · select multiple files at once
+              </p>
+              <input
+                ref={otherFileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) uploadFiles(e.target.files, { isMain: false });
+                  e.target.value = "";
+                }}
+              />
+            </div>
+          </div>
         </div>
 
         {uploadError ? (
           <p role="alert" className="mt-3 text-sm text-danger">
             {uploadError}
+          </p>
+        ) : null}
+
+        {images.length === 0 && uploadQueue.length === 0 ? (
+          <p className="mt-4 rounded-card bg-soft-beige/60 px-4 py-3 text-sm text-muted">
+            No images yet. Use the upload boxes above, or use{" "}
+            <span className="font-medium text-ink">Add by URL</span> to paste a link.
           </p>
         ) : null}
 
@@ -652,40 +1185,62 @@ export function ProductForm({ mode, productId, initial, categories, collections 
                   >
                     <Icon name="menu" className="h-4 w-4" />
                   </span>
-                  {img.isMain ? (
-                    <span className="absolute left-2 top-2 rounded-pill bg-ayli-blue px-2 py-0.5 text-[11px] font-semibold text-white">
-                      Main
-                    </span>
-                  ) : null}
-                  <div className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-black/60 to-transparent p-2">
+                  <div className="absolute left-2 top-2 flex flex-wrap gap-1">
+                    {img.isMain ? (
+                      <span className="rounded-pill bg-ayli-blue px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">
+                        Main
+                      </span>
+                    ) : null}
+                    {img.colour ? (
+                      <span className="rounded-pill bg-plum px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">
+                        {img.colour}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 bg-gradient-to-t from-black/80 via-black/50 to-transparent p-2">
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        value={img.colour}
+                        onChange={(e) => updateImage(img.key, { colour: e.target.value })}
+                        aria-label="Image color tone"
+                        className="h-8 min-w-0 flex-1 rounded-md border border-white/20 bg-white/90 px-2 text-xs font-medium text-ink focus:border-ayli-blue focus:outline-none"
+                      >
+                        <option value="">General / All colours</option>
+                        {availableColours.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        title={img.isMain ? "Main image" : "Mark as main"}
+                        aria-pressed={img.isMain}
+                        onClick={() => updateImage(img.key, { isMain: true })}
+                        className={cn(
+                          "grid h-8 w-8 place-items-center shrink-0 rounded-md transition-colors",
+                          img.isMain ? "bg-ayli-blue text-white" : "bg-white/90 text-ink hover:bg-white",
+                        )}
+                      >
+                        <Icon name="star" className="h-4 w-4" solid={img.isMain} />
+                      </button>
+                      <button
+                        type="button"
+                        title="Remove image"
+                        aria-label="Remove image"
+                        onClick={() => setImages((imgs) => imgs.filter((x) => x.key !== img.key))}
+                        className="grid h-8 w-8 place-items-center shrink-0 rounded-md bg-white/90 text-ink hover:bg-white transition-colors"
+                      >
+                        <Icon name="trash" className="h-4 w-4 text-danger" />
+                      </button>
+                    </div>
                     <input
                       value={img.alt}
                       onChange={(e) => updateImage(img.key, { alt: e.target.value })}
-                      placeholder="Alt text"
+                      placeholder="Alt text (optional)"
                       aria-label="Image alt text"
-                      className="h-8 min-w-0 flex-1 rounded-md border border-white/20 bg-white/90 px-2 text-xs text-ink placeholder:text-muted/70 focus:border-ayli-blue focus:outline-none"
+                      className="h-7 min-w-0 w-full rounded-md border border-white/20 bg-white/90 px-2 text-xs text-ink placeholder:text-muted/70 focus:border-ayli-blue focus:outline-none"
                     />
-                    <button
-                      type="button"
-                      title={img.isMain ? "Main image" : "Mark as main"}
-                      aria-pressed={img.isMain}
-                      onClick={() => updateImage(img.key, { isMain: true })}
-                      className={cn(
-                        "grid h-8 w-8 place-items-center rounded-md",
-                        img.isMain ? "bg-ayli-blue text-white" : "bg-white/90 text-ink hover:bg-white",
-                      )}
-                    >
-                      <Icon name="star" className="h-4 w-4" solid={img.isMain} />
-                    </button>
-                    <button
-                      type="button"
-                      title="Remove image"
-                      aria-label="Remove image"
-                      onClick={() => setImages((imgs) => imgs.filter((x) => x.key !== img.key))}
-                      className="grid h-8 w-8 place-items-center rounded-md bg-white/90 text-ink hover:bg-white"
-                    >
-                      <Icon name="trash" className="h-4 w-4 text-danger" />
-                    </button>
                   </div>
                 </li>
               ))}
@@ -726,6 +1281,19 @@ export function ProductForm({ mode, productId, initial, categories, collections 
                     value={img.alt}
                     onChange={(e) => updateImage(img.key, { alt: e.target.value })}
                   />
+                  <Select
+                    label="Color tone"
+                    className="max-w-40 min-w-32"
+                    value={img.colour}
+                    onChange={(e) => updateImage(img.key, { colour: e.target.value })}
+                  >
+                    <option value="">General / All</option>
+                    {availableColours.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </Select>
                   <label className="flex items-center gap-2 pb-2 text-sm font-medium text-ink">
                     <input
                       type="checkbox"
@@ -751,7 +1319,10 @@ export function ProductForm({ mode, productId, initial, categories, collections 
       </section>
 
       {/* Variants */}
-      <section className="rounded-card border border-hairline bg-warm-white p-5 shadow-soft">
+      <section className={cn("rounded-card border bg-warm-white p-5 shadow-soft", hasVariantError ? "border-danger/50 ring-1 ring-danger/20" : "border-hairline")}>
+        {hasVariantError && fe["variants"] ? (
+          <p className="mb-3 rounded-md bg-danger/5 px-3 py-2 text-sm text-danger">{fe["variants"]}</p>
+        ) : null}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-lg font-semibold tracking-tight text-ink">
             Variants{" "}
@@ -907,80 +1478,117 @@ export function ProductForm({ mode, productId, initial, categories, collections 
               </tr>
             </thead>
             <tbody className="divide-y divide-hairline/70">
-              {variants.map((v) => (
-                <tr key={v.key}>
-                  <td className="px-2 py-2">
-                    <input
-                      value={v.colour}
-                      onChange={(e) => updateVariant(v.key, { colour: e.target.value })}
-                      placeholder="Dusty Brown"
-                      className="h-10 w-full min-w-28 rounded-card border border-hairline bg-warm-white px-3 text-sm text-ink focus:border-ayli-blue focus:outline-none"
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input
-                      value={v.colourHex}
-                      onChange={(e) => updateVariant(v.key, { colourHex: e.target.value })}
-                      placeholder="#8B6F5E"
-                      className="h-10 w-24 rounded-card border border-hairline bg-warm-white px-3 text-sm text-ink focus:border-ayli-blue focus:outline-none"
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input
-                      value={v.size}
-                      onChange={(e) => updateVariant(v.key, { size: e.target.value })}
-                      placeholder="M"
-                      className="h-10 w-16 rounded-card border border-hairline bg-warm-white px-3 text-sm text-ink focus:border-ayli-blue focus:outline-none"
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input
-                      value={v.sku}
-                      onChange={(e) => updateVariant(v.key, { sku: e.target.value })}
-                      placeholder="AYLI-…-S"
-                      className="h-10 w-full min-w-32 rounded-card border border-hairline bg-warm-white px-3 text-sm text-ink focus:border-ayli-blue focus:outline-none"
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input
-                      type="number"
-                      min="0"
-                      value={v.price}
-                      onChange={(e) => updateVariant(v.key, { price: e.target.value })}
-                      placeholder="Optional"
-                      className="h-10 w-24 rounded-card border border-hairline bg-warm-white px-3 text-sm text-ink focus:border-ayli-blue focus:outline-none"
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input
-                      type="number"
-                      min="0"
-                      value={v.stock}
-                      onChange={(e) => updateVariant(v.key, { stock: e.target.value })}
-                      className="h-10 w-20 rounded-card border border-hairline bg-warm-white px-3 text-sm text-ink focus:border-ayli-blue focus:outline-none"
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input
-                      type="checkbox"
-                      checked={v.active}
-                      onChange={(e) => updateVariant(v.key, { active: e.target.checked })}
-                      className="h-4 w-4 accent-[#22c0d4]"
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      aria-label="Remove variant"
-                      onClick={() => setVariants((vs) => vs.filter((x) => x.key !== v.key))}
-                    >
-                      <Icon name="trash" className="h-4 w-4 text-danger" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+              {variants.map((v, vIdx) => {
+                // Check if this specific variant row has errors
+                const vPrefix = `variants.${vIdx}`;
+                const vColourErr = fe[`${vPrefix}.colour`];
+                const vSizeErr = fe[`${vPrefix}.size`];
+                const vSkuErr = fe[`${vPrefix}.sku`];
+                const vStockErr = fe[`${vPrefix}.stock`];
+                const rowHasError = !!(vColourErr || vSizeErr || vSkuErr || vStockErr);
+                return (
+                  <tr key={v.key} className={rowHasError ? "bg-danger/5" : undefined}>
+                    <td className="px-2 py-2">
+                      <div className="flex flex-col gap-1">
+                        <input
+                          value={v.colour}
+                          onChange={(e) => updateVariant(v.key, { colour: e.target.value })}
+                          placeholder="Dusty Brown"
+                          aria-invalid={!!vColourErr}
+                          className={cn(
+                            "h-10 w-full min-w-28 rounded-card border bg-warm-white px-3 text-sm text-ink focus:outline-none",
+                            vColourErr ? "border-danger focus:border-danger" : "border-hairline focus:border-ayli-blue"
+                          )}
+                        />
+                        {vColourErr ? <p className="text-xs text-danger">{vColourErr}</p> : null}
+                      </div>
+                    </td>
+                    <td className="px-2 py-2">
+                      <input
+                        value={v.colourHex}
+                        onChange={(e) => updateVariant(v.key, { colourHex: e.target.value })}
+                        placeholder="#8B6F5E"
+                        className="h-10 w-24 rounded-card border border-hairline bg-warm-white px-3 text-sm text-ink focus:border-ayli-blue focus:outline-none"
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <div className="flex flex-col gap-1">
+                        <input
+                          value={v.size}
+                          onChange={(e) => updateVariant(v.key, { size: e.target.value })}
+                          placeholder="M"
+                          aria-invalid={!!vSizeErr}
+                          className={cn(
+                            "h-10 w-16 rounded-card border bg-warm-white px-3 text-sm text-ink focus:outline-none",
+                            vSizeErr ? "border-danger focus:border-danger" : "border-hairline focus:border-ayli-blue"
+                          )}
+                        />
+                        {vSizeErr ? <p className="text-xs text-danger">{vSizeErr}</p> : null}
+                      </div>
+                    </td>
+                    <td className="px-2 py-2">
+                      <div className="flex flex-col gap-1">
+                        <input
+                          value={v.sku}
+                          onChange={(e) => updateVariant(v.key, { sku: e.target.value })}
+                          placeholder="AYLI-…-S"
+                          aria-invalid={!!vSkuErr}
+                          className={cn(
+                            "h-10 w-full min-w-32 rounded-card border bg-warm-white px-3 text-sm text-ink focus:outline-none",
+                            vSkuErr ? "border-danger focus:border-danger" : "border-hairline focus:border-ayli-blue"
+                          )}
+                        />
+                        {vSkuErr ? <p className="text-xs text-danger">{vSkuErr}</p> : null}
+                      </div>
+                    </td>
+                    <td className="px-2 py-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={v.price}
+                        onChange={(e) => updateVariant(v.key, { price: e.target.value })}
+                        placeholder="Optional"
+                        className="h-10 w-24 rounded-card border border-hairline bg-warm-white px-3 text-sm text-ink focus:border-ayli-blue focus:outline-none"
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <div className="flex flex-col gap-1">
+                        <input
+                          type="number"
+                          min="0"
+                          value={v.stock}
+                          onChange={(e) => updateVariant(v.key, { stock: e.target.value })}
+                          aria-invalid={!!vStockErr}
+                          className={cn(
+                            "h-10 w-20 rounded-card border bg-warm-white px-3 text-sm text-ink focus:outline-none",
+                            vStockErr ? "border-danger focus:border-danger" : "border-hairline focus:border-ayli-blue"
+                          )}
+                        />
+                        {vStockErr ? <p className="text-xs text-danger">{vStockErr}</p> : null}
+                      </div>
+                    </td>
+                    <td className="px-2 py-2">
+                      <input
+                        type="checkbox"
+                        checked={v.active}
+                        onChange={(e) => updateVariant(v.key, { active: e.target.checked })}
+                        className="h-4 w-4 accent-[#22c0d4]"
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Remove variant"
+                        onClick={() => setVariants((vs) => vs.filter((x) => x.key !== v.key))}
+                      >
+                        <Icon name="trash" className="h-4 w-4 text-danger" />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1034,7 +1642,7 @@ export function ProductForm({ mode, productId, initial, categories, collections 
         >
           Cancel
         </Button>
-        <Button type="submit" isLoading={pending}>
+        <Button type="submit" isLoading={pending} disabled={uploadQueue.length > 0}>
           {mode === "create" ? "Create product" : "Save changes"}
         </Button>
       </div>

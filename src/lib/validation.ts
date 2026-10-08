@@ -5,25 +5,59 @@ import { z } from "zod";
 // files (which may only export async functions).
 
 export const addressSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().trim().min(1, "Please enter a recipient name.").max(80),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^\d{10}$/, "Please enter a valid 10-digit phone number."),
-  line1: z.string().trim().min(1, "Address line 1 is required.").max(200),
-  line2: z.string().trim().max(200).optional().default(""),
-  city: z.string().trim().min(1, "City is required.").max(80),
-  state: z.string().trim().min(1, "State is required.").max(80),
-  pincode: z
-    .string()
-    .trim()
-    .regex(/^\d{6}$/, "Please enter a valid 6-digit pincode."),
-  country: z.string().trim().default("India"),
+  id: z.string().trim().nullish().transform((v) => v || undefined),
+  name: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() : ""),
+    z.string().min(1, "Please enter a recipient name.").max(80)
+  ),
+  phone: z.preprocess(
+    (v) => {
+      if (typeof v !== "string") return "";
+      let cleaned = v.trim().replace(/[\s\-\(\)\+]/g, "");
+      if (cleaned.startsWith("91") && cleaned.length === 12) cleaned = cleaned.slice(2);
+      else if (cleaned.startsWith("0") && cleaned.length === 11) cleaned = cleaned.slice(1);
+      return cleaned;
+    },
+    z.string().regex(/^\d{10}$/, "Please enter a valid 10-digit phone number.")
+  ),
+  line1: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() : ""),
+    z.string().min(1, "Address line 1 is required.").max(200)
+  ),
+  line2: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() : ""),
+    z.string().max(200).default("")
+  ),
+  city: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() : ""),
+    z.string().min(1, "City is required.").max(80)
+  ),
+  state: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() : ""),
+    z.string().min(1, "State is required.").max(80)
+  ),
+  pincode: z.preprocess(
+    (v) => {
+      if (typeof v !== "string") return "";
+      return v.trim().replace(/[\s\-]/g, "");
+    },
+    z.string().regex(/^\d{6}$/, "Please enter a valid 6-digit pincode.")
+  ),
+  country: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() ? v.trim() : "India"),
+    z.string().default("India")
+  ),
   isDefault: z
-    .union([z.literal("on"), z.literal("true"), z.literal("1")])
-    .optional()
-    .transform((v) => v === "on" || v === "true" || v === "1"),
+    .union([
+      z.literal("on"),
+      z.literal("true"),
+      z.literal("1"),
+      z.literal("false"),
+      z.literal("0"),
+      z.boolean(),
+    ])
+    .nullish()
+    .transform((v) => v === true || v === "on" || v === "true" || v === "1"),
 });
 
 export function formatFieldErrors(
@@ -31,7 +65,8 @@ export function formatFieldErrors(
 ): Record<string, string> {
   const map: Record<string, string> = {};
   for (const issue of issues) {
-    const key = typeof issue.path[0] === "string" ? issue.path[0] : "_root";
+    // Build full dot-path key so nested errors like variants.0.colour are preserved
+    const key = issue.path.length > 0 ? issue.path.join(".") : "_root";
     if (!map[key]) map[key] = issue.message;
   }
   return map;
@@ -42,6 +77,7 @@ export function formatFieldErrors(
 export const productImageSchema = z.object({
   url: z.string().trim().min(1, "Image URL is required."),
   alt: z.string().trim().max(200).optional().default(""),
+  colour: z.string().trim().max(80).optional().nullable(),
   isMain: z.boolean().optional().default(false),
   sortOrder: z.number().int().min(0).optional().default(0),
 });
@@ -90,6 +126,7 @@ export const adminProductSchema = z.object({
   stretchability: z.string().trim().max(80).optional().nullable(),
   washCare: z.string().max(2000).optional().nullable(),
   sizeChartUrl: z.string().url("Enter a valid URL.").optional().nullable().or(z.literal("")),
+  sizeChartData: z.string().optional().nullable(),
   modelInfo: z.string().trim().max(500).optional().nullable(),
   garmentMeasurements: z.string().max(2000).optional().nullable(),
   productMeasurements: z.string().max(2000).optional().nullable(),
@@ -145,6 +182,7 @@ export const adminCollectionSchema = z.object({
 export interface AdminImageInput {
   url: string;
   alt?: string;
+  colour?: string | null;
   isMain?: boolean;
   sortOrder?: number;
 }
@@ -189,6 +227,7 @@ export interface AdminProductInput {
   stretchability?: string | null;
   washCare?: string | null;
   sizeChartUrl?: string | null;
+  sizeChartData?: string | null;
   modelInfo?: string | null;
   garmentMeasurements?: string | null;
   productMeasurements?: string | null;

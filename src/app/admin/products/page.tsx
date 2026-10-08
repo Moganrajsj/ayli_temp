@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { formatINR } from "@/lib/utils";
 import { Icon } from "@/components/ui/icons";
 import { buttonClasses } from "@/components/ui/button";
+import { DeleteProductButton } from "@/components/admin/delete-product-button";
 
 export const metadata: Metadata = {
   title: "Products",
@@ -169,13 +170,16 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/admin/products/${p.id}/edit`}
-                      className="inline-flex items-center gap-1 rounded-pill px-3 py-1.5 text-sm font-medium text-ayli-blue hover:bg-ayli-blue/10"
-                    >
-                      <Icon name="edit" className="h-4 w-4" />
-                      Edit
-                    </Link>
+                    <div className="flex items-center justify-end gap-1">
+                      <Link
+                        href={`/admin/products/${p.id}/edit`}
+                        className="inline-flex items-center gap-1 rounded-pill px-3 py-1.5 text-sm font-medium text-ayli-blue hover:bg-ayli-blue/10"
+                      >
+                        <Icon name="edit" className="h-4 w-4" />
+                        Edit
+                      </Link>
+                      <DeleteProductButton productId={p.id} productName={p.name} />
+                    </div>
                   </td>
                 </tr>
               );

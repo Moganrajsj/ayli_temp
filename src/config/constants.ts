@@ -44,5 +44,5 @@ export function whatsappUrl(message?: string): string {
 export const SITE_URL = requireConfig(
   process.env.NEXT_PUBLIC_APP_URL,
   "NEXT_PUBLIC_APP_URL",
-  "http://localhost:4000"
+  "https://ayli.in"
 );

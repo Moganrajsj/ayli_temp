@@ -2,36 +2,32 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { getVerifiedAdmin } from "@/lib/admin";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { Logo } from "@/components/layout/logo";
 import { adminSignOutAction } from "@/actions/admin-auth.action";
 import { Icon } from "@/components/ui/icons";
+import { AdminLoginScreen } from "@/components/admin/admin-login-screen";
 
 const ADMIN_SIGNIN_PATH = "/admin/login";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  const session = await auth();
+  const admin = await getVerifiedAdmin();
   const pathname = (await headers()).get("x-pathname") ?? "/admin";
 
-  // The admin login page renders standalone — no admin chrome or outer wrappers
-  if (pathname.startsWith(ADMIN_SIGNIN_PATH)) {
-    if (session?.user?.role === "ADMIN") redirect("/admin");
-    if (session?.user?.id) redirect("/account");
-    return <>{children}</>;
-  }
+  if (pathname.startsWith(ADMIN_SIGNIN_PATH)) redirect("/admin");
 
-  if (!session?.user?.id) redirect(`${ADMIN_SIGNIN_PATH}?callbackUrl=/admin`);
-  if (session.user.role !== "ADMIN") redirect("/account");
+  if (!admin) {
+    if (pathname === "/admin") return <AdminLoginScreen />;
+    redirect("/admin");
+  }
 
   return (
     <div className="min-h-dvh bg-soft-beige/40">
       <header className="sticky top-0 z-30 border-b border-hairline bg-warm-white/95 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <Link href="/admin" aria-label="Admin home">
-              <Logo />
-            </Link>
+            <Logo href="/admin" />
             <span className="hidden rounded-pill bg-ayli-blue/10 px-3 py-1 text-xs font-semibold text-ayli-blue sm:inline">
               Admin
             </span>

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ViewTransition } from "react";
 import { auth } from "@/lib/auth";
 import { isWishlisted } from "@/lib/wishlist";
 import { SITE_URL } from "@/config/constants";
@@ -9,8 +8,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
 import { ErrorState } from "@/components/ui/error-state";
-import { Gallery } from "@/components/product/gallery";
-import { AddToBag } from "@/components/product/add-to-bag";
+import { ProductView } from "@/components/product/product-view";
 import { WishlistButton } from "@/components/product/wishlist-button";
 import { Accordion } from "@/components/product/accordion";
 import { PriceBlock } from "@/components/product/price-block";
@@ -73,7 +71,6 @@ function collectAttributes(product: {
   productType: string | null;
   fabric: string | null;
   pattern: string | null;
-  printType: string | null;
   sleeveType: string | null;
   neckType: string | null;
   length: string | null;
@@ -82,13 +79,14 @@ function collectAttributes(product: {
   rise: string | null;
   occasion: string | null;
   material: string | null;
+  transparency: string | null;
+  stretchability: string | null;
   countryOfOrigin: string | null;
 }): Attribute[] {
   const entries: Array<[string, string | null]> = [
     ["Product type", product.productType],
     ["Fabric", product.fabric],
     ["Pattern", product.pattern],
-    ["Print type", product.printType],
     ["Sleeve", product.sleeveType],
     ["Neck", product.neckType],
     ["Length", product.length],
@@ -96,6 +94,8 @@ function collectAttributes(product: {
     ["Waist", product.waist],
     ["Rise", product.rise],
     ["Material", product.material],
+    ["Transparency", product.transparency],
+    ["Stretchability", product.stretchability],
     ["Occasion", product.occasion],
     ["Brand", product.brand],
     ["Made in", product.countryOfOrigin],
@@ -135,6 +135,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const imageSlides = product.images.map((image) => ({
     url: image.url,
     alt: image.alt ?? product.name,
+    colour: image.colour ?? null,
   }));
 
   const crumbs = [
@@ -200,12 +201,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
         />
         <Breadcrumbs items={crumbs} className="mb-6" />
 
-        <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
-          <ViewTransition name={`product-${product.slug}`} share="morph" default="none">
-            <Gallery images={imageSlides} className="lg:sticky lg:top-24" />
-          </ViewTransition>
-
-          <div className="min-w-0">
+        <ProductView
+          productName={product.name}
+          productSlug={product.slug}
+          variants={variants}
+          basePrice={sellingPrice}
+          images={imageSlides}
+          headerContent={
             <div className="space-y-3">
               {discountPercent > 0 ? (
                 <Badge variant="discount">{discountPercent}% off</Badge>
@@ -228,79 +230,115 @@ export default async function ProductPage({ params }: ProductPageProps) {
               <PriceBlock mrp={product.mrp.toNumber()} sellingPrice={sellingPrice} />
               <p className="text-xs text-muted">Inclusive of all taxes</p>
             </div>
-
-            <AddToBag
-              productName={product.name}
-              variants={variants}
-              basePrice={sellingPrice}
-              className="mt-8"
+          }
+          accordionContent={
+            <Accordion
+              items={[
+                {
+                  title: "About this style",
+                  content: product.shortDescription ||
+                    product.description ||
+                    "Details coming soon.",
+                },
+                {
+                  title: "Details & care",
+                  content: attributes.length ? (
+                    <ul className="grid grid-cols-2 gap-x-6 gap-y-2">
+                      {attributes.map((attribute) => (
+                        <li key={attribute.label} className="flex flex-col gap-0.5">
+                          <span className="text-xs uppercase tracking-wide text-muted/70">
+                            {attribute.label}
+                          </span>
+                          <span className="text-ink">{attribute.value}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    "Fabric and care instructions are being finalised."
+                  ),
+                },
+                {
+                  id: "fit-and-measurements",
+                  title: "Fit & measurements",
+                  content: (
+                    <div className="space-y-3">
+                      {product.fit ? (
+                        <p>Fit: {product.fit}</p>
+                      ) : null}
+                      {product.modelInfo ? (
+                        <p>{product.modelInfo}</p>
+                      ) : null}
+                      {product.garmentMeasurements ? (
+                        <p>{product.garmentMeasurements}</p>
+                      ) : null}
+                      {product.washCare ? (
+                        <p>Care: {product.washCare}</p>
+                      ) : null}
+                      {product.sizeChartData ? (
+                        (() => {
+                          try {
+                            const parsed = JSON.parse(product.sizeChartData) as {
+                              headers?: string[];
+                              rows?: string[][];
+                            };
+                            if (parsed?.headers?.length && parsed?.rows?.length) {
+                              return (
+                                <div className="mt-3">
+                                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted/80">
+                                    Size Chart (in inches)
+                                  </p>
+                                  <div className="overflow-x-auto rounded-card border border-hairline bg-warm-white">
+                                    <table className="w-full text-left text-xs">
+                                      <thead className="bg-soft-beige/60 text-ink">
+                                        <tr className="border-b border-hairline">
+                                          {parsed.headers.map((h, i) => (
+                                            <th key={i} className="px-3 py-2 font-semibold">
+                                              {h}
+                                            </th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-hairline">
+                                        {parsed.rows.map((row, ri) => (
+                                          <tr key={ri} className="hover:bg-soft-beige/30">
+                                            {row.map((cell, ci) => (
+                                              <td key={ci} className="px-3 py-2 text-ink">
+                                                {cell}
+                                              </td>
+                                            ))}
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              );
+                            }
+                          } catch {}
+                          return null;
+                        })()
+                      ) : product.sizeChartUrl ? (
+                        <a
+                          href={product.sizeChartUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-medium text-ayli-blue hover:text-[#1496a8]"
+                        >
+                          View size chart
+                        </a>
+                      ) : null}
+                    </div>
+                  ),
+                },
+                {
+                  title: "Shipping & returns",
+                  content:
+                    "Free shipping on orders above ₹999. Dispatch within 24 hours. 15-day hassle-free returns and exchanges.",
+                },
+              ]}
             />
-
-            <div className="mt-10">
-              <Accordion
-                items={[
-                  {
-                    title: "About this style",
-                    content: product.shortDescription ||
-                      product.description ||
-                      "Details coming soon.",
-                  },
-                  {
-                    title: "Details & care",
-                    content: attributes.length ? (
-                      <ul className="grid grid-cols-2 gap-x-6 gap-y-2">
-                        {attributes.map((attribute) => (
-                          <li key={attribute.label} className="flex flex-col gap-0.5">
-                            <span className="text-xs uppercase tracking-wide text-muted/70">
-                              {attribute.label}
-                            </span>
-                            <span className="text-ink">{attribute.value}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      "Fabric and care instructions are being finalised."
-                    ),
-                  },
-                  {
-                    title: "Fit & measurements",
-                    content: (
-                      <div className="space-y-3">
-                        {product.fit ? (
-                          <p>Fit: {product.fit}</p>
-                        ) : null}
-                        {product.modelInfo ? (
-                          <p>{product.modelInfo}</p>
-                        ) : null}
-                        {product.garmentMeasurements ? (
-                          <p>{product.garmentMeasurements}</p>
-                        ) : null}
-                        {product.washCare ? (
-                          <p>Care: {product.washCare}</p>
-                        ) : null}
-                        {product.sizeChartUrl ? (
-                          <a
-                            href={product.sizeChartUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="font-medium text-ayli-blue hover:text-[#1496a8]"
-                          >
-                            View size chart
-                          </a>
-                        ) : null}
-                      </div>
-                    ),
-                  },
-                  {
-                    title: "Shipping & returns",
-                    content:
-                      "Free shipping on orders above ₹999. Dispatch within 24 hours. 15-day hassle-free returns and exchanges.",
-                  },
-                ]}
-              />
-            </div>
-          </div>
-        </div>
+          }
+        />
 
         {related.length > 0 ? (
           <section className="mt-16 lg:mt-24">

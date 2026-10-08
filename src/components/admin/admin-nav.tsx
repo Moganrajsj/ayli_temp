@@ -17,6 +17,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/admin/products", label: "Products", icon: "bag" },
   { href: "/admin/categories", label: "Categories", icon: "briefcase" },
   { href: "/admin/orders", label: "Orders", icon: "box" },
+  { href: "/admin/returns", label: "Returns", icon: "shield-check" },
   { href: "/admin/inventory", label: "Inventory", icon: "truck" },
   { href: "/admin/customers", label: "Customers", icon: "user" },
 ];

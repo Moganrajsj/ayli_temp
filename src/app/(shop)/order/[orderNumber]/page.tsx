@@ -9,6 +9,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { buttonClasses } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import { OrderStatusTimeline } from "@/components/orders/order-status-timeline";
+import { OrderActionButtons } from "@/components/orders/order-action-buttons";
 
 interface PageProps {
   params: Promise<{ orderNumber: string }>;
@@ -180,6 +181,25 @@ export default async function OrderDetailPage({ params }: PageProps) {
             </dl>
           </section>
         </div>
+
+        <OrderActionButtons
+          orderId={order.id}
+          orderNumber={order.orderNumber}
+          status={order.status}
+          paymentStatus={order.paymentStatus}
+          paymentOrderId={order.paymentOrderId}
+          paymentMethod={order.paymentMethod}
+          total={Number(order.total)}
+          customerName={order.address.name}
+          customerPhone={order.address.phone}
+          items={order.items.map((i) => ({
+            id: i.id,
+            name: i.name,
+            colour: i.colour,
+            size: i.size,
+            quantity: i.quantity,
+          }))}
+        />
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link href="/" className={buttonClasses({ size: "lg", className: "flex-1 justify-center" })}>

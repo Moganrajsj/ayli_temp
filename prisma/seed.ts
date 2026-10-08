@@ -127,6 +127,9 @@ const collections = [
   { name: "Office Wear", slug: "office-wear", description: "Polished, comfortable and boardroom-ready." },
   { name: "Casual Wear", slug: "casual-wear", description: "Effortless everyday pieces you will live in." },
   { name: "Party Wear", slug: "party-wear", description: "Make an entrance in styles made to be noticed." },
+  { name: "Wedding", slug: "wedding", description: "Graceful looks curated for wedding season — from mehendi to reception." },
+  { name: "Premium", slug: "premium", description: "Elevated fabrics and finishes for those who appreciate the finer things." },
+  { name: "Seasonal", slug: "seasonal", description: "Limited-edition pieces aligned to the season." },
   { name: "Sale", slug: "sale", description: "Loved pieces at their loveliest prices." },
   { name: "Custom Fit", slug: "custom-fit", description: "Made to measure — stitched to your exact size." },
 ];
@@ -884,10 +887,23 @@ async function syncProduct(spec: ProductSpec, index: number) {
     },
   });
 
-  // Idempotent children reset — variants cascade to inventory.
+  // Idempotent children reset — protect any variants already tied to orders
+  const existingOrderVariants = await prisma.orderItem.findMany({
+    where: { productId: product.id },
+    select: { variantId: true },
+  });
+  const protectedVariantIds = new Set(existingOrderVariants.map((o) => o.variantId));
+
   await Promise.all([
     prisma.productImage.deleteMany({ where: { productId: product.id } }),
-    prisma.productVariant.deleteMany({ where: { productId: product.id } }),
+    prisma.productVariant.deleteMany({
+      where: {
+        productId: product.id,
+        ...(protectedVariantIds.size > 0
+          ? { id: { notIn: Array.from(protectedVariantIds) } }
+          : {}),
+      },
+    }),
     prisma.productCollection.deleteMany({ where: { productId: product.id } }),
   ]);
 
@@ -905,24 +921,61 @@ async function syncProduct(spec: ProductSpec, index: number) {
   for (const colourSpec of spec.colours) {
     for (const size of spec.sizes) {
       const inventory = inventoryFor(index, variantIndex);
-      await prisma.productVariant.create({
-        data: {
-          productId: product.id,
-          sku: `${product.sku}-${colourCode(colourSpec.colour)}-${size.replace(/\s+/g, "")}`,
-          colour: colourSpec.colour,
-          colourHex: colourSpec.colourHex,
-          size,
-          isActive: true,
-          inventory: {
-            create: {
-              stockQuantity: inventory.stockQuantity,
-              reservedQuantity: inventory.reservedQuantity,
-              lowStockThreshold: 5,
-              stockStatus: inventory.stockStatus,
-            },
+      const variantSku = `${product.sku}-${colourCode(colourSpec.colour)}-${size.replace(/\s+/g, "")}`;
+      const existing = await prisma.productVariant.findUnique({
+        where: {
+          productId_colour_size: {
+            productId: product.id,
+            colour: colourSpec.colour,
+            size,
           },
         },
       });
+
+      if (existing) {
+        await prisma.productVariant.update({
+          where: { id: existing.id },
+          data: {
+            sku: variantSku,
+            colourHex: colourSpec.colourHex,
+            isActive: true,
+          },
+        });
+        await prisma.inventory.upsert({
+          where: { variantId: existing.id },
+          update: {
+            stockQuantity: inventory.stockQuantity,
+            reservedQuantity: inventory.reservedQuantity,
+            stockStatus: inventory.stockStatus,
+          },
+          create: {
+            variantId: existing.id,
+            stockQuantity: inventory.stockQuantity,
+            reservedQuantity: inventory.reservedQuantity,
+            lowStockThreshold: 5,
+            stockStatus: inventory.stockStatus,
+          },
+        });
+      } else {
+        await prisma.productVariant.create({
+          data: {
+            productId: product.id,
+            sku: variantSku,
+            colour: colourSpec.colour,
+            colourHex: colourSpec.colourHex,
+            size,
+            isActive: true,
+            inventory: {
+              create: {
+                stockQuantity: inventory.stockQuantity,
+                reservedQuantity: inventory.reservedQuantity,
+                lowStockThreshold: 5,
+                stockStatus: inventory.stockStatus,
+              },
+            },
+          },
+        });
+      }
       variantIndex += 1;
     }
   }

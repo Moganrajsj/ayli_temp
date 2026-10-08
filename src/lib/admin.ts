@@ -1,4 +1,31 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+
+export interface VerifiedAdmin {
+  id: string;
+  email: string;
+  name: string | null;
+  role: "ADMIN";
+}
+
+export async function getVerifiedAdmin(): Promise<VerifiedAdmin | null> {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, email: true, name: true, role: true },
+  });
+
+  if (!user || user.role !== "ADMIN") return null;
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: "ADMIN",
+  };
+}
 
 export interface AdminCategoryOption {
   id: string;
@@ -43,6 +70,7 @@ export interface AdminProductDetail {
   stretchability: string | null;
   washCare: string | null;
   sizeChartUrl: string | null;
+  sizeChartData: string | null;
   modelInfo: string | null;
   garmentMeasurements: string | null;
   productMeasurements: string | null;
@@ -53,6 +81,7 @@ export interface AdminProductDetail {
     id: string;
     url: string;
     alt: string | null;
+    colour: string | null;
     isMain: boolean;
     sortOrder: number;
   }>;
@@ -94,7 +123,7 @@ export async function getAdminProductDetail(id: string): Promise<AdminProductDet
     where: { id },
     include: {
       images: { orderBy: { sortOrder: "asc" } },
-      variants: { orderBy: { colour: "asc", size: "asc" }, include: { inventory: true } },
+      variants: { orderBy: [{ colour: "asc" }, { size: "asc" }], include: { inventory: true } },
       collections: { select: { collectionId: true } },
     },
   });

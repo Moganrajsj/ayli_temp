@@ -2,7 +2,7 @@
 
 import { Prisma, type OrderStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getVerifiedAdmin } from "@/lib/admin";
 import {
   adminCategorySchema,
   adminCollectionSchema,
@@ -14,11 +14,7 @@ import {
 } from "@/lib/validation";
 
 async function requireAdmin(): Promise<{ id: string } | null> {
-  const session = await auth();
-  if (session?.user?.id && session.user.role === "ADMIN") {
-    return { id: session.user.id };
-  }
-  return null;
+  return getVerifiedAdmin();
 }
 
 function notAuthorized(): AdminActionResult {
@@ -49,6 +45,7 @@ const OPTIONAL_TEXT = [
   "stretchability",
   "washCare",
   "sizeChartUrl",
+  "sizeChartData",
   "modelInfo",
   "garmentMeasurements",
   "productMeasurements",
@@ -115,6 +112,7 @@ export async function createProductAction(input: AdminProductInput): Promise<Adm
             create: parsed.data.images.map((img, i) => ({
               url: img.url,
               alt: img.alt || null,
+              colour: img.colour || null,
               isMain: img.isMain || i === 0,
               sortOrder: img.sortOrder ?? i,
             })),
@@ -194,6 +192,7 @@ export async function updateProductAction(
             create: parsed.data.images.map((img, i) => ({
               url: img.url,
               alt: img.alt || null,
+              colour: img.colour || null,
               isMain: img.isMain || i === 0,
               sortOrder: img.sortOrder ?? i,
             })),

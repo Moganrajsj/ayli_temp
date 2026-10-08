@@ -20,14 +20,6 @@ function redirectToSignIn(request: NextRequest, fallback: string): NextResponse 
   return NextResponse.redirect(url);
 }
 
-function redirectToAdminSignIn(request: NextRequest, fallback: string): NextResponse {
-  const url = request.nextUrl.clone();
-  url.pathname = ADMIN_SIGNIN_PATH;
-  url.search = "";
-  url.searchParams.set("callbackUrl", safeCallbackUrl(fallback));
-  return NextResponse.redirect(url);
-}
-
 function allow(request: NextRequest): NextResponse {
   const headers = new Headers(request.headers);
   headers.set("x-pathname", request.nextUrl.pathname);
@@ -40,17 +32,11 @@ export const proxy = auth((request) => {
   const { pathname } = request.nextUrl;
   const user = request.auth?.user;
 
-  // The admin login page is public: signed-in admins are sent straight to the
-  // admin area, while customers (signed in or not) may still view it so they can
-  // switch to an administrator session.
   if (pathname === ADMIN_SIGNIN_PATH) {
-    if (user?.role === "ADMIN") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/admin";
-      url.search = "";
-      return NextResponse.redirect(url);
-    }
-    return allow(request);
+    const url = request.nextUrl.clone();
+    url.pathname = "/admin";
+    url.search = "";
+    return NextResponse.redirect(url);
   }
 
   if (pathname.startsWith("/account") && !user?.id) {
@@ -58,10 +44,9 @@ export const proxy = auth((request) => {
   }
 
   if (pathname.startsWith("/admin")) {
-    if (!user?.id) return redirectToAdminSignIn(request, pathname);
-    if (user.role !== "ADMIN") {
+    if (pathname !== "/admin" && (!user?.id || user.role !== "ADMIN")) {
       const url = request.nextUrl.clone();
-      url.pathname = "/account";
+      url.pathname = "/admin";
       url.search = "";
       return NextResponse.redirect(url);
     }

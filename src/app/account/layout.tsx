@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/footer";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { PageContainer } from "@/components/layout/page-container";
 import { FloatingWhatsApp } from "@/components/whatsapp/floating-whatsapp";
+import { BackButton } from "@/components/layout/back-button";
 
 export default async function AccountLayout({ children }: { children: ReactNode }) {
   const session = await auth();
@@ -15,7 +16,10 @@ export default async function AccountLayout({ children }: { children: ReactNode 
     <>
       <Header />
       <main id="main-content" className="flex-1 bg-soft-beige/40">
-        <PageContainer className="py-8 lg:py-14">{children}</PageContainer>
+        <PageContainer className="py-8 lg:py-14">
+          <BackButton className="mb-5" />
+          {children}
+        </PageContainer>
       </main>
       <Footer />
       <BottomNav />

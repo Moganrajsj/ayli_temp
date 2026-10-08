@@ -10,7 +10,9 @@ import { addressSchema, formatFieldErrors } from "@/lib/validation";
 import {
   type OrderActionResult,
   type ShippingMethod,
+  type PaymentMethodChoice,
   EXPRESS_SHIPPING_FEE,
+  COD_FEE,
 } from "@/lib/checkout";
 
 async function requireUser(): Promise<{ id: string } | null> {
@@ -34,7 +36,7 @@ function computedShipping(method: ShippingMethod, sellingTotal: number): number 
 }
 
 async function lockVariant(tx: Prisma.TransactionClient, variantId: string) {
-  await tx.$queryRaw`SELECT id FROM \`Inventory\` WHERE variantId = ${variantId} FOR UPDATE`;
+  await tx.$queryRaw`SELECT id FROM Inventory WHERE variantId = ${variantId} FOR UPDATE`;
 }
 
 // Read available (unreserved) stock inside a locked transaction for a variant.
@@ -78,36 +80,44 @@ export async function createCheckoutAddress(
     };
   }
 
-  const { id: _discard, isDefault, ...data } = parsed.data;
+  const { isDefault, ...data } = parsed.data;
 
-  const address = await prisma.$transaction(async (tx) => {
-    const count = await tx.address.count({ where: { userId: user.id } });
-    if (isDefault || count === 0) {
-      await tx.address.updateMany({
-        where: { userId: user.id, isDefault: true },
-        data: { isDefault: false },
+  try {
+    const address = await prisma.$transaction(async (tx) => {
+      const count = await tx.address.count({ where: { userId: user.id } });
+      if (isDefault || count === 0) {
+        await tx.address.updateMany({
+          where: { userId: user.id, isDefault: true },
+          data: { isDefault: false },
+        });
+      }
+      return tx.address.create({
+        data: { ...data, userId: user.id, isDefault: isDefault || count === 0 },
       });
-    }
-    return tx.address.create({
-      data: { ...data, userId: user.id, isDefault: isDefault || count === 0 },
     });
-  });
 
-  return {
-    ok: true,
-    address: {
-      id: address.id,
-      name: address.name,
-      phone: address.phone,
-      line1: address.line1,
-      line2: address.line2 ?? "",
-      city: address.city,
-      state: address.state,
-      pincode: address.pincode,
-      country: address.country,
-      isDefault: address.isDefault,
-    },
-  };
+    return {
+      ok: true,
+      address: {
+        id: address.id,
+        name: address.name,
+        phone: address.phone,
+        line1: address.line1,
+        line2: address.line2 ?? "",
+        city: address.city,
+        state: address.state,
+        pincode: address.pincode,
+        country: address.country,
+        isDefault: address.isDefault,
+      },
+    };
+  } catch (error) {
+    console.error("Failed to save delivery address:", error);
+    return {
+      ok: false,
+      message: "Could not save address. Please try again.",
+    };
+  }
 }
 
 /* ───────── place order ───────── */
@@ -115,12 +125,17 @@ export async function createCheckoutAddress(
 export async function placeOrder(
   addressId: string,
   method: ShippingMethod,
+  paymentChoice: PaymentMethodChoice = "upi",
 ): Promise<OrderActionResult> {
   const user = await requireUser();
   if (!user) return { ok: false, message: "Please sign in to continue." };
 
   if (method !== "standard" && method !== "express") {
     return { ok: false, message: "Invalid shipping method." };
+  }
+
+  if (paymentChoice !== "upi" && paymentChoice !== "card" && paymentChoice !== "cod") {
+    return { ok: false, message: "Invalid payment method." };
   }
 
   const address = await prisma.address.findFirst({
@@ -138,60 +153,165 @@ export async function placeOrder(
 
   const sellingTotal = sellable.reduce((sum, l) => sum + l.lineSelling, 0);
   const mrpTotal = sellable.reduce((sum, l) => sum + l.lineMrp, 0);
-  const shipping = computedShipping(method, sellingTotal);
+  const codFee = paymentChoice === "cod" ? COD_FEE : 0;
+  const shipping = computedShipping(method, sellingTotal) + codFee;
   const total = sellingTotal + shipping;
   const orderNumber = nextOrderNumber();
-  const gateway = paymentProvider.gateway;
 
-  const order = await prisma.$transaction(async (tx) => {
-    for (const line of sellable) {
-      await lockVariant(tx, line.variantId);
-      const available = await availableInTx(tx, line.variantId);
-      if (available < line.quantity) {
-        throw new Error("OOS");
-      }
-    }
+  // ── Cash on Delivery (COD) flow ───────────────────────────────────────────
+  if (paymentChoice === "cod") {
+    try {
+      const createdOrder = await prisma.$transaction(async (tx) => {
+        for (const line of sellable) {
+          await lockVariant(tx, line.variantId);
+          const available = await availableInTx(tx, line.variantId);
+          if (available < line.quantity) {
+            throw new Error("OOS");
+          }
+        }
 
-    const created = await tx.order.create({
-      data: {
-        orderNumber,
-        userId: user.id,
-        addressId,
-        subtotal: sellingTotal,
-        discount: Math.max(0, mrpTotal - sellingTotal),
-        tax: 0,
-        shipping,
-        total,
-        status: "PENDING",
-        paymentStatus: "PENDING",
-        paymentMethod: gateway,
-        shippingMethod: method === "express" ? "EXPRESS" : "STANDARD",
-        items: {
-          create: sellable.map((line) => ({
-            productId: line.productId,
-            variantId: line.variantId,
-            name: line.name,
-            image: line.image,
-            colour: line.colour,
-            size: line.size,
-            quantity: line.quantity,
-            price: line.unitSelling,
-            total: line.lineSelling,
-          })),
-        },
-      },
-      select: { id: true },
-    });
+        const created = await tx.order.create({
+          data: {
+            orderNumber,
+            userId: user.id,
+            addressId,
+            subtotal: sellingTotal,
+            discount: Math.max(0, mrpTotal - sellingTotal),
+            tax: 0,
+            shipping,
+            total,
+            status: "CONFIRMED",
+            paymentStatus: "PENDING",
+            paymentMethod: "COD",
+            shippingMethod: method === "express" ? "EXPRESS" : "STANDARD",
+            items: {
+              create: sellable.map((line) => ({
+                productId: line.productId,
+                variantId: line.variantId,
+                name: line.name,
+                image: line.image,
+                colour: line.colour,
+                size: line.size,
+                quantity: line.quantity,
+                price: line.unitSelling,
+                total: line.lineSelling,
+              })),
+            },
+          },
+          select: { id: true, orderNumber: true },
+        });
 
-    for (const line of sellable) {
-      await tx.inventory.update({
-        where: { variantId: line.variantId },
-        data: { reservedQuantity: { increment: line.quantity } },
+        // Deduct inventory directly for confirmed COD order
+        for (const line of sellable) {
+          await tx.inventory.update({
+            where: { variantId: line.variantId },
+            data: {
+              stockQuantity: { decrement: line.quantity },
+            },
+          });
+        }
+
+        // Clear user cart
+        const cart = await tx.cart.findUnique({
+          where: { userId: user.id },
+          select: { id: true },
+        });
+        if (cart) {
+          await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+        }
+
+        return created;
       });
-    }
 
-    return { id: created.id };
-  });
+      return {
+        ok: true,
+        orderId: createdOrder.id,
+        orderNumber: createdOrder.orderNumber,
+        gateway: "cod",
+      };
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message === "OOS") {
+        return {
+          ok: false,
+          message: "One or more items in your cart went out of stock. Please review your bag.",
+        };
+      }
+      console.error("COD order creation error:", err);
+      return {
+        ok: false,
+        message: "Could not place COD order. Please try again.",
+      };
+    }
+  }
+
+  // ── Online payment flow (PhonePe / Mock) ───────────────────────────────────
+  const gateway = paymentProvider.gateway;
+  const paymentMethodLabel = paymentChoice === "card" ? "CARD" : "UPI";
+
+  let order: { id: string };
+  try {
+    order = await prisma.$transaction(async (tx) => {
+      for (const line of sellable) {
+        await lockVariant(tx, line.variantId);
+        const available = await availableInTx(tx, line.variantId);
+        if (available < line.quantity) {
+          throw new Error("OOS");
+        }
+      }
+
+      const created = await tx.order.create({
+        data: {
+          orderNumber,
+          userId: user.id,
+          addressId,
+          subtotal: sellingTotal,
+          discount: Math.max(0, mrpTotal - sellingTotal),
+          tax: 0,
+          shipping,
+          total,
+          status: "PENDING",
+          paymentStatus: "PENDING",
+          paymentMethod: paymentMethodLabel,
+          shippingMethod: method === "express" ? "EXPRESS" : "STANDARD",
+          items: {
+            create: sellable.map((line) => ({
+              productId: line.productId,
+              variantId: line.variantId,
+              name: line.name,
+              image: line.image,
+              colour: line.colour,
+              size: line.size,
+              quantity: line.quantity,
+              price: line.unitSelling,
+              total: line.lineSelling,
+            })),
+          },
+        },
+        select: { id: true },
+      });
+
+      for (const line of sellable) {
+        await tx.inventory.update({
+          where: { variantId: line.variantId },
+          data: { reservedQuantity: { increment: line.quantity } },
+        });
+      }
+
+      return { id: created.id };
+    });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === "OOS") {
+      return {
+        ok: false,
+        message: "One or more items in your cart went out of stock. Please review your bag.",
+      };
+    }
+    console.error("Order creation transaction error:", err);
+    return {
+      ok: false,
+      message: "Could not create order. Please try again.",
+    };
+  }
 
   let payment;
   try {
@@ -200,7 +320,8 @@ export async function placeOrder(
       currency: "INR",
       receipt: orderNumber,
     });
-  } catch {
+  } catch (err) {
+    console.error("Payment initialization error:", err);
     await markOrderFailed(order.id);
     return {
       ok: false,
@@ -220,37 +341,101 @@ export async function placeOrder(
     payment,
     gateway,
     publicKey: paymentProvider.publicKey(),
+    // PhonePe returns the hosted payment page URL inside the payment object.
+    redirectUrl: (payment as { redirectUrl?: string }).redirectUrl,
   };
 }
 
 /* ───────── confirm payment ───────── */
 
-export async function verifyAndConfirmOrder(input: {
-  orderId: string;
-  paymentId: string;
-  signature: string;
-}): Promise<OrderActionResult> {
+/**
+ * verifyAndConfirmOrder accepts two call shapes:
+ *
+ * 1. Razorpay / client-side (legacy): { orderId, paymentId, signature }
+ *    Called directly from the checkout popup handler.
+ *
+ * 2. PhonePe / redirect callback: { txnId }
+ *    Called from /checkout/callback?txnId=... after PhonePe redirects back.
+ *    Looks up the order by paymentOrderId (= merchantTransactionId = orderNumber)
+ *    and verifies via PhonePe's status API.
+ */
+export async function verifyAndConfirmOrder(
+  input:
+    | { orderId: string; paymentId: string; signature: string }
+    | { txnId: string }
+): Promise<OrderActionResult> {
   const user = await requireUser();
   if (!user) return { ok: false, message: "Please sign in to continue." };
 
-  const order = await prisma.order.findFirst({
-    where: { id: input.orderId, userId: user.id, status: "PENDING" },
-    select: {
-      id: true,
-      orderNumber: true,
-      paymentOrderId: true,
-      items: { select: { variantId: true, quantity: true } },
-    },
-  });
-  if (!order) return { ok: false, message: "This order is no longer pending." };
+  // Resolve the order regardless of which call shape was used.
+  let order: {
+    id: string;
+    orderNumber: string;
+    status: string;
+    paymentOrderId: string | null;
+    items: { variantId: string; quantity: number }[];
+  } | null;
 
-  const signatureValid =
-    order.paymentOrderId != null &&
-    (await paymentProvider.verifyPayment({
-      orderId: order.paymentOrderId,
-      paymentId: input.paymentId,
-      signature: input.signature,
-    }));
+  if ("txnId" in input) {
+    // PhonePe callback path: find order by merchantTransactionId.
+    order = await prisma.order.findFirst({
+      where: { paymentOrderId: input.txnId, userId: user.id },
+      select: {
+        id: true,
+        orderNumber: true,
+        status: true,
+        paymentOrderId: true,
+        items: { select: { variantId: true, quantity: true } },
+      },
+    });
+  } else {
+    order = await prisma.order.findFirst({
+      where: { id: input.orderId, userId: user.id },
+      select: {
+        id: true,
+        orderNumber: true,
+        status: true,
+        paymentOrderId: true,
+        items: { select: { variantId: true, quantity: true } },
+      },
+    });
+  }
+
+  if (!order) return { ok: false, message: "Order not found." };
+
+  if (order.status === "CONFIRMED") {
+    return { ok: true, orderNumber: order.orderNumber };
+  }
+
+  if (order.status !== "PENDING") {
+    return { ok: false, message: "This order is no longer pending." };
+  }
+
+  // Verify the payment with the gateway.
+  let signatureValid = false;
+  if ("txnId" in input) {
+    // PhonePe: call status API using merchantTransactionId as orderId.
+    signatureValid =
+      order.paymentOrderId != null &&
+      (await paymentProvider.verifyPayment({
+        orderId: order.paymentOrderId,
+        paymentId: "",   // not used by PhonePeProvider.verifyPayment
+        signature: "",   // not used by PhonePeProvider.verifyPayment
+      }));
+  } else {
+    signatureValid =
+      order.paymentOrderId != null &&
+      (await paymentProvider.verifyPayment({
+        orderId: order.paymentOrderId,
+        paymentId: input.paymentId,
+        signature: input.signature,
+      }));
+  }
+
+  // Determine the paymentId to store — PhonePe sends it via webhook but not
+  // the redirect; store the txnId/orderId as a fallback so the row is populated.
+  const resolvedPaymentId =
+    "txnId" in input ? (order.paymentOrderId ?? input.txnId) : input.paymentId;
 
   if (!signatureValid) {
     await markOrderFailed(order.id);
@@ -259,7 +444,7 @@ export async function verifyAndConfirmOrder(input: {
 
   try {
     await prisma.$transaction(async (tx) => {
-      for (const item of order.items) {
+      for (const item of order!.items) {
         await lockVariant(tx, item.variantId);
         const available = await availableInTx(tx, item.variantId);
         if (available < item.quantity) {
@@ -267,7 +452,7 @@ export async function verifyAndConfirmOrder(input: {
         }
       }
 
-      for (const item of order.items) {
+      for (const item of order!.items) {
         await tx.inventory.update({
           where: { variantId: item.variantId },
           data: {
@@ -286,11 +471,11 @@ export async function verifyAndConfirmOrder(input: {
       }
 
       await tx.order.update({
-        where: { id: order.id },
+        where: { id: order!.id },
         data: {
           status: "CONFIRMED",
           paymentStatus: "PAID",
-          paymentId: input.paymentId,
+          paymentId: resolvedPaymentId,
         },
       });
     });
@@ -346,11 +531,72 @@ export async function cancelOrder(orderId: string): Promise<OrderActionResult> {
   if (!user) return { ok: false, message: "Please sign in to continue." };
 
   const order = await prisma.order.findFirst({
-    where: { id: orderId, userId: user.id, status: "PENDING" },
-    select: { id: true },
+    where: { id: orderId, userId: user.id },
+    select: {
+      id: true,
+      orderNumber: true,
+      status: true,
+      paymentStatus: true,
+      paymentId: true,
+      total: true,
+      items: { select: { variantId: true, quantity: true } },
+    },
   });
-  if (!order) return { ok: false, message: "This order is no longer pending." };
 
-  await markOrderFailed(order.id);
-  return { ok: true, message: "Order cancelled." };
+  if (!order) return { ok: false, message: "Order not found." };
+
+  if (order.status === "PENDING") {
+    await markOrderFailed(order.id);
+    return { ok: true, message: "Order cancelled." };
+  }
+
+  if (order.status === "CONFIRMED") {
+    // Restore stockQuantity back to inventory for cancelled confirmed orders
+    await prisma.$transaction(async (tx) => {
+      for (const item of order.items) {
+        await lockVariant(tx, item.variantId);
+        await tx.inventory.update({
+          where: { variantId: item.variantId },
+          data: { stockQuantity: { increment: item.quantity } },
+        });
+      }
+
+      await tx.order.update({
+        where: { id: order.id },
+        data: {
+          status: "CANCELLED",
+          paymentStatus: order.paymentStatus === "PAID" ? "REFUNDED" : "FAILED",
+        },
+      });
+    });
+
+    // Attempt PhonePe refund if order was paid.
+    // order.orderNumber = merchantTransactionId, order.paymentId = PhonePe transactionId.
+    if (order.paymentStatus === "PAID" && order.paymentId) {
+      try {
+        const { PhonePeProvider } = await import("@/lib/phonepe");
+        const phonePeProvider = new PhonePeProvider();
+        const refundResult = await phonePeProvider.refundPayment(
+          order.orderNumber,
+          order.paymentId,
+          Number(order.total)
+        );
+        await prisma.refund.create({
+          data: {
+            orderId: order.id,
+            razorpayRefundId: refundResult.id, // column reused for PhonePe refund txnId
+            amount: refundResult.amount,
+            status: refundResult.status,
+            reason: "Customer order cancellation",
+          },
+        });
+      } catch (err) {
+        console.error("Automated PhonePe refund error on cancellation:", err);
+      }
+    }
+
+    return { ok: true, message: "Order cancelled and refund initiated." };
+  }
+
+  return { ok: false, message: "Orders in PACKED, SHIPPED or DELIVERED status cannot be cancelled directly." };
 }

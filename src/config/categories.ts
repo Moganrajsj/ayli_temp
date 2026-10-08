@@ -9,7 +9,6 @@ export type FilterKey =
   | "colour"
   | "fabric"
   | "pattern"
-  | "printType"
   | "sleeveType"
   | "neckType"
   | "length"
@@ -18,6 +17,8 @@ export type FilterKey =
   | "waist"
   | "rise"
   | "material"
+  | "transparency"
+  | "stretchability"
   | "price";
 
 export type FilterType = "multi" | "range";
@@ -33,7 +34,6 @@ export const FILTER_LABELS: Record<FilterKey, string> = {
   colour: "Colour",
   fabric: "Fabric",
   pattern: "Pattern",
-  printType: "Print Type",
   sleeveType: "Sleeve",
   neckType: "Neck",
   length: "Length",
@@ -42,6 +42,8 @@ export const FILTER_LABELS: Record<FilterKey, string> = {
   waist: "Waist",
   rise: "Rise",
   material: "Material",
+  transparency: "Transparency",
+  stretchability: "Stretchability",
   price: "Price",
 };
 
@@ -57,32 +59,33 @@ export const CATEGORY_FILTERS: Record<string, FilterConfig[]> = {
       "colour",
       "fabric",
       "pattern",
-      "printType",
       "sleeveType",
       "neckType",
       "length",
       "fit",
-      "occasion"
+      "occasion",
+      "transparency",
+      "stretchability"
     ),
     PRICE,
   ],
   "co-ord-sets": [
-    ...multi("size", "colour", "fabric", "pattern", "length", "fit", "occasion"),
+    ...multi("size", "colour", "fabric", "pattern", "length", "fit", "occasion", "transparency", "stretchability"),
     PRICE,
   ],
   "kurta-sets": [
-    ...multi("size", "colour", "fabric", "pattern", "length", "fit", "occasion"),
+    ...multi("size", "colour", "fabric", "pattern", "length", "fit", "occasion", "transparency", "stretchability"),
     PRICE,
   ],
   dresses: [
-    ...multi("size", "colour", "fabric", "pattern", "sleeveType", "length", "fit", "occasion"),
+    ...multi("size", "colour", "fabric", "pattern", "sleeveType", "length", "fit", "occasion", "transparency", "stretchability"),
     PRICE,
   ],
   bottoms: [
-    ...multi("size", "colour", "fabric", "pattern", "waist", "rise", "length", "fit"),
+    ...multi("size", "colour", "fabric", "pattern", "waist", "rise", "length", "fit", "stretchability"),
     PRICE,
   ],
-  fabrics: [...multi("fabric", "pattern", "material", "printType"), PRICE],
+  fabrics: [...multi("fabric", "pattern", "material", "transparency"), PRICE],
   accessories: [...multi("material", "colour", "size", "occasion"), PRICE],
 };
 
