@@ -30,7 +30,7 @@ export function AdminLoginForm() {
           type="email"
           required
           autoComplete="email"
-          placeholder="admin@ayli.in"
+          placeholder="Enter your email"
           className="h-11 w-full rounded-lg border border-[#ddd] bg-white px-3.5 text-sm text-[#1a1a1a] placeholder:text-[#bbb] focus:border-[#6b4c3b] focus:outline-none focus:ring-1 focus:ring-[#6b4c3b]"
         />
       </div>
