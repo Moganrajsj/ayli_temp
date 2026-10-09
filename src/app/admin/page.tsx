@@ -44,8 +44,15 @@ function StatCard({
 }
 
 export default async function AdminDashboardPage() {
-  const [paidAggregate, orderCount, productCount, customerCount, lowStock, recentOrders] =
-    await Promise.all([
+  let paidTotal = 0;
+  let orderCount = 0;
+  let productCount = 0;
+  let customerCount = 0;
+  let lowStock: Awaited<ReturnType<typeof prisma.inventory.findMany<{ include: { variant: { include: { product: { select: { name: true; slug: true } } } } } }>>> = [];
+  let recentOrders: Awaited<ReturnType<typeof prisma.order.findMany<{ include: { items: true; user: { select: { name: true; email: true } } } }>>> = [];
+
+  try {
+    const [paidAggregate, oCount, pCount, cCount, ls, ro] = await Promise.all([
       prisma.order.aggregate({
         _sum: { total: true },
         where: { paymentStatus: "PAID" },
@@ -66,8 +73,17 @@ export default async function AdminDashboardPage() {
       }),
     ]);
 
-  const revenue = (paidAggregate._sum.total as number | null) ?? 0;
-  const revenueValue = revenue > 0 ? formatINR(revenue) : "₹0";
+    paidTotal = Number(paidAggregate._sum.total ?? 0);
+    orderCount = oCount;
+    productCount = pCount;
+    customerCount = cCount;
+    lowStock = ls;
+    recentOrders = ro;
+  } catch (error) {
+    console.error("Admin: Error querying dashboard metrics:", error);
+  }
+
+  const revenueValue = paidTotal > 0 ? formatINR(paidTotal) : "₹0";
 
   return (
     <div>

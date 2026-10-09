@@ -12,19 +12,37 @@ export async function getVerifiedAdmin(): Promise<VerifiedAdmin | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, email: true, name: true, role: true },
-  });
+  // Quick reject if session role is explicitly not ADMIN
+  if (session.user.role && session.user.role !== "ADMIN") return null;
 
-  if (!user || user.role !== "ADMIN") return null;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, email: true, name: true, role: true },
+    });
 
-  return {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: "ADMIN",
-  };
+    if (user && user.role === "ADMIN") {
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: "ADMIN",
+      };
+    }
+  } catch (error) {
+    console.error("Admin: Database check failed, checking session JWT:", error);
+    // Fallback: If DB is temporarily hitting connection limits, trust valid ADMIN JWT session
+    if (session.user.role === "ADMIN" && session.user.email) {
+      return {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name ?? null,
+        role: "ADMIN",
+      };
+    }
+  }
+
+  return null;
 }
 
 export interface AdminCategoryOption {
