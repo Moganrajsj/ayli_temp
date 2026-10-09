@@ -199,27 +199,43 @@ export default async function AccountHomePage() {
   const session = await auth();
   const user = session?.user;
 
-  const [freshUser, ordersCount, wishlist, addressesCount, recentOrder] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: user?.id ?? "" },
-      select: { name: true, email: true, phone: true, role: true },
-    }),
-    prisma.order.count({ where: { userId: user?.id ?? "" } }),
-    prisma.wishlist.findUnique({
-      where: { userId: user?.id ?? "" },
-      select: { _count: { select: { items: true } } },
-    }),
-    prisma.address.count({ where: { userId: user?.id ?? "" } }),
-    prisma.order.findFirst({
-      where: { userId: user?.id ?? "" },
-      orderBy: { createdAt: "desc" },
-      include: { items: { take: 1 } },
-    }),
-  ]);
+  let freshUser: { name: string | null; email: string | null; phone: string | null; role: string } | null = null;
+  let ordersCount = 0;
+  let wishlistCount = 0;
+  let addressesCount = 0;
+  let recentOrder: Awaited<ReturnType<typeof prisma.order.findFirst<{ include: { items: { take: 1 } } }>>> = null;
+
+  if (user?.id) {
+    try {
+      const [u, oCount, w, aCount, rOrder] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id: user.id },
+          select: { name: true, email: true, phone: true, role: true },
+        }),
+        prisma.order.count({ where: { userId: user.id } }),
+        prisma.wishlist.findUnique({
+          where: { userId: user.id },
+          select: { _count: { select: { items: true } } },
+        }),
+        prisma.address.count({ where: { userId: user.id } }),
+        prisma.order.findFirst({
+          where: { userId: user.id },
+          orderBy: { createdAt: "desc" },
+          include: { items: { take: 1 } },
+        }),
+      ]);
+      freshUser = u;
+      ordersCount = oCount;
+      wishlistCount = w?._count.items ?? 0;
+      addressesCount = aCount;
+      recentOrder = rOrder;
+    } catch (error) {
+      console.error("Account: Error loading account dashboard data:", error);
+    }
+  }
 
   const name = freshUser?.name ?? user?.name ?? "there";
   const firstName = name.split(" ")[0];
-  const wishlistCount = wishlist?._count.items ?? 0;
 
   const recentItem = recentOrder?.items[0]
     ? {

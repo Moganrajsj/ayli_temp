@@ -22,11 +22,18 @@ function OrderStatusBadge({ status }: { status: string }) {
 export default async function OrdersPage() {
   const session = await auth();
 
-  const orders = await prisma.order.findMany({
-    where: { userId: session?.user?.id ?? "" },
-    orderBy: { createdAt: "desc" },
-    include: { items: true },
-  });
+  let orders: Awaited<ReturnType<typeof prisma.order.findMany<{ include: { items: true } }>>> = [];
+  if (session?.user?.id) {
+    try {
+      orders = await prisma.order.findMany({
+        where: { userId: session.user.id },
+        orderBy: { createdAt: "desc" },
+        include: { items: true },
+      });
+    } catch (error) {
+      console.error("Orders: Error querying user orders:", error);
+    }
+  }
 
   if (orders.length === 0) {
     return (

@@ -50,56 +50,80 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     // OAuth (Google) -> upsert the local AYLI user by email.
-    // Credentials accounts already exist in Postgres, so skip.
+    // Credentials accounts already exist in database, so skip.
     async signIn({ user, account }) {
       if (account?.provider === "google") {
         if (!user.email) return false;
-        await prisma.user.upsert({
-          where: { email: user.email },
-          update: {
-            name: user.name ?? undefined,
-            image: user.image ?? undefined,
-          },
-          create: {
-            email: user.email,
-            name: user.name,
-            image: user.image,
-            role: "CUSTOMER",
-          },
-        });
+        try {
+          const dbUser = await prisma.user.upsert({
+            where: { email: user.email },
+            update: {
+              name: user.name ?? undefined,
+              image: user.image ?? undefined,
+            },
+            create: {
+              email: user.email,
+              name: user.name,
+              image: user.image,
+              role: "CUSTOMER",
+            },
+          });
+          user.id = dbUser.id;
+          user.role = dbUser.role;
+        } catch (error) {
+          console.error("Auth: Google sign-in user upsert error:", error);
+        }
       }
       return true;
     },
     // Stamp our own user id/role onto the JWT. Only queries the DB at sign-in
     // (or on session update); returning requests reuse the existing token.
     async jwt({ token, user, trigger }) {
-      if (user?.email) {
-        const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
-        if (dbUser) {
-          token.id = dbUser.id;
-          token.role = dbUser.role;
-          token.email = dbUser.email;
-          token.name = dbUser.name;
-          token.picture = dbUser.image;
+      if (user) {
+        if (user.id) token.id = user.id;
+        if (user.role) token.role = user.role;
+        if (user.email) token.email = user.email;
+        if (user.name) token.name = user.name;
+        if (user.image) token.picture = user.image;
+      }
+      if (user?.email && !token.id) {
+        try {
+          const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+          if (dbUser) {
+            token.id = dbUser.id;
+            token.role = dbUser.role;
+            token.email = dbUser.email;
+            token.name = dbUser.name;
+            token.picture = dbUser.image;
+          }
+        } catch (error) {
+          console.error("Auth: JWT user lookup error:", error);
         }
       }
       if (trigger === "update" && typeof token.email === "string") {
-        const dbUser = await prisma.user.findUnique({ where: { email: token.email } });
-        if (dbUser) {
-          token.name = dbUser.name;
-          token.picture = dbUser.image;
-          token.role = dbUser.role;
+        try {
+          const dbUser = await prisma.user.findUnique({ where: { email: token.email } });
+          if (dbUser) {
+            token.name = dbUser.name;
+            token.picture = dbUser.image;
+            token.role = dbUser.role;
+          }
+        } catch (error) {
+          console.error("Auth: JWT trigger update error:", error);
         }
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token.id) {
-        session.user.id = token.id;
-        session.user.role = token.role ?? "CUSTOMER";
-        session.user.name = token.name ?? session.user.name ?? null;
-        session.user.email = token.email ?? session.user.email ?? null;
-        session.user.image = token.picture ?? session.user.image ?? null;
+      if (session.user) {
+        const resolvedId = (token.id as string) || (token.sub as string);
+        if (resolvedId) {
+          session.user.id = resolvedId;
+        }
+        session.user.role = (token.role as "CUSTOMER" | "ADMIN") ?? "CUSTOMER";
+        session.user.name = (token.name as string) ?? session.user.name ?? null;
+        session.user.email = (token.email as string) ?? session.user.email ?? null;
+        session.user.image = (token.picture as string) ?? session.user.image ?? null;
       }
       return session;
     },

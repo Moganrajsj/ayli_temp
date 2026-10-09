@@ -19,10 +19,17 @@ export default async function AddressesPage({
   const session = await auth();
   const params = await searchParams;
 
-  const addresses = await prisma.address.findMany({
-    where: { userId: session?.user?.id ?? "" },
-    orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
-  });
+  let addresses: Awaited<ReturnType<typeof prisma.address.findMany>> = [];
+  if (session?.user?.id) {
+    try {
+      addresses = await prisma.address.findMany({
+        where: { userId: session.user.id },
+        orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+      });
+    } catch (error) {
+      console.error("Addresses: Error querying addresses:", error);
+    }
+  }
 
   const editing = params.edit ? addresses.find((a) => a.id === params.edit) : undefined;
   const showForm = params.new === "1" || Boolean(editing);

@@ -16,10 +16,17 @@ export default async function ProfilePage({
   const session = await auth();
   const { updated } = await searchParams;
 
-  const freshUser = await prisma.user.findUnique({
-    where: { id: session?.user?.id ?? "" },
-    select: { name: true, email: true, phone: true },
-  });
+  let freshUser: { name: string | null; email: string | null; phone: string | null } | null = null;
+  if (session?.user?.id) {
+    try {
+      freshUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { name: true, email: true, phone: true },
+      });
+    } catch (error) {
+      console.error("Profile: Error querying user profile:", error);
+    }
+  }
 
   const name = freshUser?.name ?? session?.user?.name ?? "";
   const email = freshUser?.email ?? session?.user?.email ?? "";
