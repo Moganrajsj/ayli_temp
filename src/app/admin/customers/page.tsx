@@ -23,20 +23,26 @@ export default async function AdminCustomersPage({ searchParams }: PageProps) {
       }
     : { role: "CUSTOMER" as const };
 
-  const users = await prisma.user.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      image: true,
-      createdAt: true,
-      _count: { select: { orders: true } },
-    },
-  });
+  let users: any[] = [];
+
+  try {
+    users = await prisma.user.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        image: true,
+        createdAt: true,
+        _count: { select: { orders: true } },
+      },
+    });
+  } catch (error) {
+    console.error("AdminCustomersPage: Error querying customers:", error);
+  }
 
   return (
     <div>

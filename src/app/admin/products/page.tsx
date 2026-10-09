@@ -40,31 +40,42 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
     ],
   };
 
-  const [products, total, categories] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        sku: true,
-        mrp: true,
-        sellingPrice: true,
-        isActive: true,
-        isFeatured: true,
-        category: { select: { name: true } },
-        variants: {
-          where: { isActive: true },
-          select: { inventory: { select: { stockQuantity: true } } },
+  let products: any[] = [];
+  let total = 0;
+  let categories: Array<{ id: string; name: string }> = [];
+
+  try {
+    const [pList, tCount, cList] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          sku: true,
+          mrp: true,
+          sellingPrice: true,
+          isActive: true,
+          isFeatured: true,
+          category: { select: { name: true } },
+          variants: {
+            where: { isActive: true },
+            select: { inventory: { select: { stockQuantity: true } } },
+          },
         },
-      },
-    }),
-    prisma.product.count({ where }),
-    prisma.category.findMany({ orderBy: { sortOrder: "asc" }, select: { id: true, name: true } }),
-  ]);
+      }),
+      prisma.product.count({ where }),
+      prisma.category.findMany({ orderBy: { sortOrder: "asc" }, select: { id: true, name: true } }),
+    ]);
+    products = pList;
+    total = tCount;
+    categories = cList;
+  } catch (error) {
+    console.error("AdminProductsPage: Error querying products:", error);
+  }
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -143,7 +154,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
           </thead>
           <tbody className="divide-y divide-hairline/70">
             {products.map((p) => {
-              const stock = p.variants.reduce((s, v) => s + (v.inventory?.stockQuantity ?? 0), 0);
+              const stock = p.variants.reduce((s: number, v: any) => s + (v.inventory?.stockQuantity ?? 0), 0);
               return (
                 <tr key={p.id} className="transition-colors hover:bg-soft-beige/40">
                   <td className="px-4 py-3">

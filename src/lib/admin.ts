@@ -118,52 +118,67 @@ export interface AdminProductDetail {
 }
 
 export async function getAdminCategoryOptions(): Promise<AdminCategoryOption[]> {
-  return prisma.category.findMany({
-    orderBy: { sortOrder: "asc" },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      subcategories: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, slug: true } },
-    },
-  });
+  try {
+    return await prisma.category.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        subcategories: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, slug: true } },
+      },
+    });
+  } catch (error) {
+    console.error("getAdminCategoryOptions error:", error);
+    return [];
+  }
 }
 
 export async function getAdminCollectionOptions(): Promise<AdminCollectionOption[]> {
-  return prisma.collection.findMany({
-    orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true, slug: true },
-  });
+  try {
+    return await prisma.collection.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true, slug: true },
+    });
+  } catch (error) {
+    console.error("getAdminCollectionOptions error:", error);
+    return [];
+  }
 }
 
 export async function getAdminProductDetail(id: string): Promise<AdminProductDetail | null> {
-  const product = await prisma.product.findUnique({
-    where: { id },
-    include: {
-      images: { orderBy: { sortOrder: "asc" } },
-      variants: { orderBy: [{ colour: "asc" }, { size: "asc" }], include: { inventory: true } },
-      collections: { select: { collectionId: true } },
-    },
-  });
-  if (!product) return null;
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        images: { orderBy: { sortOrder: "asc" } },
+        variants: { orderBy: [{ colour: "asc" }, { size: "asc" }], include: { inventory: true } },
+        collections: { select: { collectionId: true } },
+      },
+    });
+    if (!product) return null;
 
-  return {
-    ...product,
-    mrp: Number(product.mrp),
-    sellingPrice: Number(product.sellingPrice),
-    costPrice: product.costPrice != null ? Number(product.costPrice) : null,
-    taxRate: Number(product.taxRate),
-    variants: product.variants.map((v) => ({
-      id: v.id,
-      sku: v.sku,
-      barcode: v.barcode,
-      colour: v.colour,
-      colourHex: v.colourHex,
-      size: v.size,
-      price: v.price != null ? Number(v.price) : null,
-      isActive: v.isActive,
-      stock: v.inventory?.stockQuantity ?? 0,
-    })),
-    collectionIds: product.collections.map((c) => c.collectionId),
-  };
+    return {
+      ...product,
+      mrp: Number(product.mrp),
+      sellingPrice: Number(product.sellingPrice),
+      costPrice: product.costPrice != null ? Number(product.costPrice) : null,
+      taxRate: Number(product.taxRate),
+      variants: product.variants.map((v) => ({
+        id: v.id,
+        sku: v.sku,
+        barcode: v.barcode,
+        colour: v.colour,
+        colourHex: v.colourHex,
+        size: v.size,
+        price: v.price != null ? Number(v.price) : null,
+        isActive: v.isActive,
+        stock: v.inventory?.stockQuantity ?? 0,
+      })),
+      collectionIds: product.collections.map((c) => c.collectionId),
+    };
+  } catch (error) {
+    console.error("getAdminProductDetail error:", error);
+    return null;
+  }
 }

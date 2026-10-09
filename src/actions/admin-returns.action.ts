@@ -30,16 +30,21 @@ export async function getAdminReturnRequests(statusFilter?: string) {
       ? (statusFilter as ReturnStatus)
       : undefined;
 
-  return prisma.returnRequest.findMany({
-    where: status ? { status } : undefined,
-    orderBy: { createdAt: "desc" },
-    include: {
-      user: { select: { id: true, name: true, email: true, phone: true } },
-      order: { select: { id: true, orderNumber: true, total: true, paymentStatus: true, paymentId: true } },
-      items: { include: { orderItem: true } },
-      refunds: true,
-    },
-  });
+  try {
+    return await prisma.returnRequest.findMany({
+      where: status ? { status } : undefined,
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: { select: { id: true, name: true, email: true, phone: true } },
+        order: { select: { id: true, orderNumber: true, total: true, paymentStatus: true, paymentId: true } },
+        items: { include: { orderItem: true } },
+        refunds: true,
+      },
+    });
+  } catch (error) {
+    console.error("getAdminReturnRequests error:", error);
+    return [];
+  }
 }
 
 export async function updateReturnStatusAction(

@@ -34,20 +34,30 @@ export default async function AdminOrdersPage({ searchParams }: PageProps) {
     });
   }
 
-  const orders = await prisma.order.findMany({
-    where: where.length > 0 ? { AND: where } : {},
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    include: {
-      user: { select: { name: true, email: true } },
-      items: { select: { id: true, quantity: true } },
-    },
-  });
+  let orders: any[] = [];
+  let statusCounts: Array<{ status: any; _count: number }> = [];
 
-  const statusCounts = await prisma.order.groupBy({
-    by: ["status"],
-    _count: true,
-  });
+  try {
+    const [oList, sCounts] = await Promise.all([
+      prisma.order.findMany({
+        where: where.length > 0 ? { AND: where } : {},
+        orderBy: { createdAt: "desc" },
+        take: 100,
+        include: {
+          user: { select: { name: true, email: true } },
+          items: { select: { id: true, quantity: true } },
+        },
+      }),
+      prisma.order.groupBy({
+        by: ["status"],
+        _count: true,
+      }),
+    ]);
+    orders = oList;
+    statusCounts = sCounts;
+  } catch (error) {
+    console.error("AdminOrdersPage: Error querying orders:", error);
+  }
 
   const countsMap = new Map(statusCounts.map((s) => [s.status, s._count]));
   const totalAll = statusCounts.reduce((sum, s) => sum + s._count, 0);
@@ -137,7 +147,7 @@ export default async function AdminOrdersPage({ searchParams }: PageProps) {
                 </td>
                 <td className="px-4 py-3 text-muted">{formatDate(order.createdAt)}</td>
                 <td className="px-4 py-3 text-muted">
-                  {order.items.reduce((s, i) => s + i.quantity, 0)}
+                  {order.items.reduce((s: number, i: any) => s + i.quantity, 0)}
                 </td>
                 <td className="px-4 py-3 font-medium text-ink">{formatINR(Number(order.total))}</td>
                 <td className="px-4 py-3">

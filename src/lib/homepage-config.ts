@@ -187,9 +187,11 @@ export interface AdminCategoryWithProducts {
 }
 
 export async function getAdminHomepageData() {
-  const [config, dbCategories] = await Promise.all([
-    getHomepageConfig(),
-    prisma.category.findMany({
+  const config = await getHomepageConfig();
+  let dbCategories: any[] = [];
+
+  try {
+    dbCategories = await prisma.category.findMany({
       orderBy: { sortOrder: "asc" },
       include: {
         products: {
@@ -211,17 +213,19 @@ export async function getAdminHomepageData() {
           },
         },
       },
-    }),
-  ]);
+    });
+  } catch (error) {
+    console.error("getAdminHomepageData: Error querying categories:", error);
+  }
 
-  const categories: AdminCategoryWithProducts[] = dbCategories.map((cat) => ({
+  const categories: AdminCategoryWithProducts[] = dbCategories.map((cat: any) => ({
     id: cat.id,
     name: cat.name,
     slug: cat.slug,
     description: cat.description,
     sortOrder: cat.sortOrder,
     isActive: cat.isActive,
-    products: cat.products.map((p) => ({
+    products: cat.products.map((p: any) => ({
       id: p.id,
       name: p.name,
       slug: p.slug,

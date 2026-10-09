@@ -8,16 +8,22 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminInventoryPage() {
-  const inventory = await prisma.inventory.findMany({
-    orderBy: { stockQuantity: "asc" },
-    include: {
-      variant: {
-        include: {
-          product: { select: { name: true, slug: true } },
+  let inventory: any[] = [];
+
+  try {
+    inventory = await prisma.inventory.findMany({
+      orderBy: { stockQuantity: "asc" },
+      include: {
+        variant: {
+          include: {
+            product: { select: { name: true, slug: true } },
+          },
         },
       },
-    },
-  });
+    });
+  } catch (error) {
+    console.error("AdminInventoryPage: Error querying inventory:", error);
+  }
 
   const rows: InventoryRow[] = inventory.map((inv) => ({
     variantId: inv.variantId,

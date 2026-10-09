@@ -8,21 +8,27 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminCategoriesPage() {
-  const categories: AdminCategoryRow[] = await prisma.category.findMany({
-    orderBy: { sortOrder: "asc" },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      description: true,
-      sortOrder: true,
-      isActive: true,
-      subcategories: {
-        orderBy: { sortOrder: "asc" },
-        select: { id: true, name: true, slug: true, description: true, sortOrder: true, isActive: true },
+  let categories: AdminCategoryRow[] = [];
+
+  try {
+    categories = await prisma.category.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        sortOrder: true,
+        isActive: true,
+        subcategories: {
+          orderBy: { sortOrder: "asc" },
+          select: { id: true, name: true, slug: true, description: true, sortOrder: true, isActive: true },
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    console.error("AdminCategoriesPage: Error querying categories:", error);
+  }
 
   return (
     <div>
