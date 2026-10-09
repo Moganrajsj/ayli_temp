@@ -78,7 +78,7 @@ function Paths({ name, solid }: { name: IconName; solid: boolean }) {
     case "bag":
       return (
         <>
-          <path d="M6 8h12l-1.1 12.1a1 1 0 0 1-1 .9H8.1a1 1 0 0 1-1-.9.75 0 0 1 0-.2L6 8z" />
+          <path d="M6 8h12l-1.1 12.1a1 1 0 0 1 -1 0.9H8.1a1 1 0 0 1 -1 -0.9L6 8z" />
           <path d="M9 7V6a3 3 0 0 1 6 0v1" />
         </>
       );
