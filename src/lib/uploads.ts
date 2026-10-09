@@ -1,3 +1,4 @@
+import { put } from "@vercel/blob";
 import { randomBytes } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -28,14 +29,23 @@ export function validateImageFile(file: File): string | null {
 }
 
 /**
- * Persists an image to `public/uploads/products` and returns its public URL.
- * The extension is derived from the MIME type (never the client filename) and
- * the name is timestamped + randomised to avoid collisions.
+ * Persists an image to Vercel Blob (or fallback to `public/uploads/products` locally) and returns its URL.
  */
 export async function saveUploadedImage(file: File): Promise<UploadedImage> {
   const ext = MIME_EXT[file.type];
   if (!ext) throw new Error("Unsupported image type.");
 
+  // If Vercel Blob token is configured, save directly to high-speed global CDN
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const filename = `products/${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
+    const blob = await put(filename, file, {
+      access: "public",
+      contentType: file.type,
+    });
+    return { url: blob.url, size: file.size };
+  }
+
+  // Fallback for offline local development
   await mkdir(UPLOADS_DIR, { recursive: true });
   const filename = `${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
   const bytes = Buffer.from(await file.arrayBuffer());

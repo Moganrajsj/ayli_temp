@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { put } from "@vercel/blob";
 import { randomBytes } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -56,6 +57,19 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      const filename = `videos/${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
+      const blob = await put(filename, file, {
+        access: "public",
+        contentType: file.type,
+      });
+      return NextResponse.json({
+        ok: true,
+        url: blob.url,
+        size: file.size,
+      });
+    }
+
     await mkdir(UPLOADS_VIDEO_DIR, { recursive: true });
     const filename = `${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
     const bytes = Buffer.from(await file.arrayBuffer());
