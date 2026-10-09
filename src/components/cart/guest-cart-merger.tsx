@@ -30,14 +30,29 @@ export function GuestCartMerger() {
 
     let cancelled = false;
     void (async () => {
-      const result = await mergeGuestCart(items);
+      // Small delay to ensure session JWT is fully hydrated after Google OAuth redirect.
+      // Without this, mergeGuestCart() may see user=null and silently skip the merge.
+      await new Promise((resolve) => window.setTimeout(resolve, 600));
       if (cancelled) return;
-      if (result.ok) {
-        useCartStore.getState().clear();
-        dispatchCartUpdated();
-        if ((result.merged ?? 0) > 0) {
-          toast("Your saved items have moved into your bag", "success");
+
+      // Re-read items after delay (in case store changed while waiting)
+      const snapshot = useCartStore.getState().items;
+      if (snapshot.length === 0) return;
+
+      try {
+        const result = await mergeGuestCart(snapshot);
+        if (cancelled) return;
+        if (result.ok) {
+          // Only clear localStorage after server confirms successful merge
+          useCartStore.getState().clear();
+          dispatchCartUpdated();
+          if ((result.merged ?? 0) > 0) {
+            toast("Your saved items have moved into your bag", "success");
+          }
         }
+        // If result.ok is false, keep localStorage intact — items are not lost
+      } catch {
+        // Network/server error — keep localStorage intact so user doesn't lose cart
       }
     })();
 
