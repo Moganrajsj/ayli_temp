@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getVerifiedAdmin } from "@/lib/admin";
 import { AdminNav } from "@/components/admin/admin-nav";
+import { AdminAutoRefresh } from "@/components/admin/admin-auto-refresh";
 import { Logo } from "@/components/layout/logo";
 import { adminSignOutAction } from "@/actions/admin-auth.action";
 import { Icon } from "@/components/ui/icons";
@@ -33,6 +34,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <AdminAutoRefresh />
             <Link
               href="/"
               className="flex items-center gap-1.5 rounded-pill px-3.5 py-2 text-sm font-medium text-ink transition-colors hover:bg-soft-beige"

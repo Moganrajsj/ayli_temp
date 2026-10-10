@@ -4,6 +4,7 @@ import { Prisma, type OrderStatus } from "@prisma/client";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getVerifiedAdmin } from "@/lib/admin";
+import { revalidateAdmin } from "@/lib/admin-revision";
 import {
   adminCategorySchema,
   adminCollectionSchema,
@@ -141,6 +142,7 @@ export async function createProductAction(input: AdminProductInput): Promise<Adm
       return created;
     });
     revalidateTag("catalog", "max");
+    revalidateAdmin();
     return { ok: true, id: product.id, message: "Product created." };
   } catch {
     return { ok: false, message: "Could not save product. Check for duplicate variant SKUs." };
@@ -243,6 +245,7 @@ export async function updateProductAction(
       }
     });
     revalidateTag("catalog", "max");
+    revalidateAdmin();
     return { ok: true, message: "Product saved." };
   } catch {
     return {
@@ -261,6 +264,7 @@ export async function deleteProductAction(id: string): Promise<AdminActionResult
     // Keep the record for order history; just remove it from the storefront.
     await prisma.product.update({ where: { id }, data: { isActive: false } });
     revalidateTag("catalog", "max");
+    revalidateAdmin();
     return { ok: true, message: "Product hidden from storefront (has order history)." };
   }
 
@@ -295,6 +299,7 @@ export async function updateVariantStockAction(
   } else {
     await prisma.inventory.create({ data: { variantId, stockQuantity: Math.floor(stock) } });
   }
+  revalidateAdmin();
   return { ok: true, message: "Stock updated." };
 }
 
@@ -307,6 +312,7 @@ export async function updateInventoryThresholdAction(
   const inv = await prisma.inventory.findUnique({ where: { variantId } });
   if (inv) {
     await prisma.inventory.update({ where: { variantId }, data: { lowStockThreshold: Math.floor(threshold) } });
+    revalidateAdmin();
     return { ok: true, message: "Threshold updated." };
   }
   return { ok: false, message: "Inventory not found." };
@@ -417,6 +423,7 @@ export async function deleteSubcategoryAction(id: string): Promise<AdminActionRe
   try {
     await prisma.subcategory.delete({ where: { id } });
     revalidateTag("catalog", "max");
+    revalidateAdmin();
     return { ok: true, message: "Subcategory deleted." };
   } catch {
     return { ok: false, message: "Move products out of this subcategory before deleting it." };
@@ -499,6 +506,7 @@ export async function updateOrderStatusAction(
       ...(status === "DELIVERED" ? { deliveredAt: new Date() } : {}),
     },
   });
+  revalidateAdmin();
   return { ok: true, message: "Order status updated." };
 }
 
@@ -512,6 +520,7 @@ export async function updateOrderTrackingAction(
     where: { id: orderId },
     data: { trackingNumber: trackingNumber.trim() || null },
   });
+  revalidateAdmin();
   return { ok: true, message: "Tracking number saved." };
 }
 
@@ -525,5 +534,6 @@ export async function updateOrderNotesAction(
     where: { id: orderId },
     data: { notes: notes.trim() || null },
   });
+  revalidateAdmin();
   return { ok: true, message: "Notes saved." };
 }

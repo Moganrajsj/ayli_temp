@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { revalidateAdmin } from "@/lib/admin-revision";
 import { paymentProvider } from "@/lib/payment";
 import { FREE_SHIPPING_THRESHOLD, STANDARD_SHIPPING_FEE, getServerCart } from "@/lib/cart";
 import { addressSchema, formatFieldErrors } from "@/lib/validation";
@@ -223,6 +224,7 @@ export async function placeOrder(
         return created;
       });
 
+      revalidateAdmin();
       return {
         ok: true,
         orderId: createdOrder.id,
@@ -334,6 +336,7 @@ export async function placeOrder(
     data: { paymentOrderId: payment.id },
   });
 
+  revalidateAdmin();
   return {
     ok: true,
     orderId: order.id,
@@ -487,11 +490,11 @@ export async function verifyAndConfirmOrder(
     };
   }
 
+  revalidateAdmin();
   return { ok: true, orderNumber: order.orderNumber };
 }
 
 /* ───────── cancel / release ───────── */
-
 // Frees reserved inventory and marks the order CANCELLED / payment FAILED.
 async function markOrderFailed(orderId: string) {
   const items = await prisma.orderItem.findMany({
@@ -503,6 +506,7 @@ async function markOrderFailed(orderId: string) {
       where: { id: orderId },
       data: { status: "CANCELLED", paymentStatus: "FAILED" },
     });
+    revalidateAdmin();
     return;
   }
 
@@ -524,6 +528,7 @@ async function markOrderFailed(orderId: string) {
       data: { status: "CANCELLED", paymentStatus: "FAILED" },
     });
   });
+  revalidateAdmin();
 }
 
 export async function cancelOrder(orderId: string): Promise<OrderActionResult> {
@@ -595,6 +600,7 @@ export async function cancelOrder(orderId: string): Promise<OrderActionResult> {
       }
     }
 
+    revalidateAdmin();
     return { ok: true, message: "Order cancelled and refund initiated." };
   }
 

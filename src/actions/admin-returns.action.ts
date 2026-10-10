@@ -3,6 +3,7 @@
 import type { ReturnStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getVerifiedAdmin } from "@/lib/admin";
+import { revalidateAdmin } from "@/lib/admin-revision";
 import type { AdminActionResult } from "@/lib/validation";
 
 async function requireAdmin(): Promise<{ id: string } | null> {
@@ -70,6 +71,7 @@ export async function updateReturnStatusAction(
     },
   });
 
+  revalidateAdmin();
   return { ok: true, message: `Return request marked as ${status}.` };
 }
 
@@ -157,5 +159,6 @@ export async function processReturnRefundAction(
     });
   });
 
+  revalidateAdmin();
   return { ok: true, message: "Return processed, stock restored, and refund executed." };
 }

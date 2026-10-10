@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { signIn, signOut } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
+import { revalidateAdmin } from "@/lib/admin-revision";
 
 /* ───────── schemas ───────── */
 
@@ -103,6 +104,8 @@ export async function registerUser(
   await prisma.user.create({
     data: { email, name, password: passwordHash, role: "CUSTOMER" },
   });
+
+  revalidateAdmin();
 
   await signIn("credentials", {
     email,

@@ -3,6 +3,7 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getVerifiedAdmin } from "@/lib/admin";
+import { revalidateAdmin } from "@/lib/admin-revision";
 import {
   getHomepageConfig,
   saveHomepageConfig,
@@ -58,6 +59,7 @@ export async function saveHomepageSectionAction(
     revalidatePath("/");
     revalidateTag("catalog", "max");
     revalidatePath("/admin/homepage");
+    revalidateAdmin();
     return { ok: true, message: `Updated section "${sectionInput.title}".` };
   } catch (err) {
     console.error("Failed to save homepage section:", err);
@@ -80,6 +82,7 @@ export async function toggleCategoryHomepageAction(
       await saveHomepageConfig(config);
       revalidatePath("/");
       revalidatePath("/admin/homepage");
+      revalidateAdmin();
       return {
         ok: true,
         message: `${sec.title} ${enabled ? "enabled" : "hidden"} on homepage.`,
@@ -143,6 +146,7 @@ export async function toggleProductHomepageAction(
     revalidatePath("/");
     revalidateTag("catalog", "max");
     revalidatePath("/admin/homepage");
+    revalidateAdmin();
     return {
       ok: true,
       message: selected
@@ -187,6 +191,7 @@ export async function reorderHomepageSectionsAction(
     revalidatePath("/");
     revalidateTag("catalog", "max");
     revalidatePath("/admin/homepage");
+    revalidateAdmin();
     return { ok: true, message: "Homepage section order updated." };
   } catch (err) {
     console.error("Failed to reorder sections:", err);

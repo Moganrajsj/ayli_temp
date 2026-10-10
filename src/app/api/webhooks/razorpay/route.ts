@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateAdmin } from "@/lib/admin-revision";
 import { verifyRazorpayWebhookSignature } from "@/lib/razorpay";
 
 export const runtime = "nodejs";
@@ -196,6 +197,9 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    // Refresh the admin panel's change fingerprint.
+    revalidateAdmin();
 
     // Log event for idempotency
     await prisma.webhookLog.create({

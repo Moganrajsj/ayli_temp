@@ -12,6 +12,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateAdmin } from "@/lib/admin-revision";
 import { verifyPhonePeWebhookSignature } from "@/lib/phonepe";
 
 export const runtime = "nodejs";
@@ -173,6 +174,9 @@ export async function POST(request: NextRequest) {
       }
     }
     // PAYMENT_PENDING — no action; wait for a terminal event.
+
+    // Refresh the admin panel's change fingerprint.
+    revalidateAdmin();
 
     // 7. Log the event for idempotency and audit.
     await prisma.webhookLog.create({

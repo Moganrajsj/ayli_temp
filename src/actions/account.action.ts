@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { revalidateAdmin } from "@/lib/admin-revision";
 import { addressSchema, formatFieldErrors } from "@/lib/validation";
 
 /* ───────── helpers ───────── */
@@ -80,6 +81,7 @@ export async function updateProfile(
     data: { name, email, phone: phone || null },
   });
 
+  revalidateAdmin();
   redirect("/account/profile?updated=1");
 }
 

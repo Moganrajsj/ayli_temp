@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { revalidateAdmin } from "@/lib/admin-revision";
 
 export interface ReturnActionResult {
   ok: boolean;
@@ -80,6 +81,7 @@ export async function createReturnRequest(input: {
     select: { id: true },
   });
 
+  revalidateAdmin();
   return { ok: true, returnRequestId: returnReq.id, message: "Return request submitted successfully." };
 }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateAdmin } from "@/lib/admin-revision";
 
 export const runtime = "nodejs";
 
@@ -49,6 +50,8 @@ export async function GET(request: NextRequest) {
       console.error(`Failed to cleanup stale order ${order.id}:`, err);
     }
   }
+
+  if (cleaned > 0) revalidateAdmin();
 
   return NextResponse.json({ ok: true, cleanedTotal: cleaned });
 }
