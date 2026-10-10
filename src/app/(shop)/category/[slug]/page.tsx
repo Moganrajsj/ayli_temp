@@ -7,12 +7,11 @@ import { ErrorState } from "@/components/ui/error-state";
 import type { MultiFilterKey } from "@/lib/catalog-url";
 import {
   buildPricePresets,
-  getCatalogListing,
-  getCategoryBySlug,
-  getFilterGroups,
-  getPriceRange,
+  getCachedCatalogListing,
+  getCachedCategoryBySlug,
+  getCachedFilterGroups,
+  getCachedPriceRange,
   parseCatalogParams,
-  serializeProductCard,
   type SearchParams,
 } from "@/lib/catalog";
 
@@ -25,7 +24,7 @@ export async function generateMetadata({
   params,
 }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const category = await getCategoryBySlug(slug);
+  const category = await getCachedCategoryBySlug(slug);
   if (!category) return { title: "Category not found" };
   const url = `${SITE_URL}/category/${slug}`;
   const description =
@@ -49,7 +48,7 @@ export default async function CategoryPage({
   const { slug } = await params;
   const current = await searchParams;
 
-  const category = await getCategoryBySlug(slug);
+  const category = await getCachedCategoryBySlug(slug);
   if (!category) notFound();
 
   const catalogParams = parseCatalogParams(current);
@@ -67,9 +66,9 @@ export default async function CategoryPage({
   let priceRange;
   try {
     [listing, groups, priceRange] = await Promise.all([
-      getCatalogListing(scopeWhere, catalogParams, PAGE_SIZE),
-      getFilterGroups(scopeWhere, catalogParams, filterKeys),
-      getPriceRange(scopeWhere, catalogParams),
+      getCachedCatalogListing(scopeWhere, catalogParams, PAGE_SIZE),
+      getCachedFilterGroups(scopeWhere, catalogParams, filterKeys),
+      getCachedPriceRange(scopeWhere, catalogParams),
     ]);
   } catch {
     return (
@@ -104,7 +103,7 @@ export default async function CategoryPage({
         { value: "price_desc", label: "Price — High to Low" },
       ]}
       sortValue={catalogParams.sort}
-      products={listing.products.map(serializeProductCard)}
+      products={listing.products}
       exploreHref="/"
     />
   );

@@ -6,12 +6,11 @@ import { ErrorState } from "@/components/ui/error-state";
 import type { MultiFilterKey } from "@/lib/catalog-url";
 import {
   buildPricePresets,
-  getCatalogListing,
-  getFilterGroups,
-  getPriceRange,
-  getSubcategoryBySlug,
+  getCachedCatalogListing,
+  getCachedFilterGroups,
+  getCachedPriceRange,
+  getCachedSubcategoryBySlug,
   parseCatalogParams,
-  serializeProductCard,
   type SearchParams,
 } from "@/lib/catalog";
 
@@ -24,7 +23,7 @@ export async function generateMetadata({
   params,
 }: SubcategoryPageProps): Promise<Metadata> {
   const { slug, subslug } = await params;
-  const subcategory = await getSubcategoryBySlug(slug, subslug);
+  const subcategory = await getCachedSubcategoryBySlug(slug, subslug);
   return {
     title: subcategory ? subcategory.name : "Subcategory",
     description: subcategory?.description ?? undefined,
@@ -40,7 +39,7 @@ export default async function SubcategoryPage({
   const { slug, subslug } = await params;
   const current = await searchParams;
 
-  const subcategory = await getSubcategoryBySlug(slug, subslug);
+  const subcategory = await getCachedSubcategoryBySlug(slug, subslug);
   if (!subcategory) notFound();
 
   const catalogParams = parseCatalogParams(current);
@@ -59,9 +58,9 @@ export default async function SubcategoryPage({
   let priceRange;
   try {
     [listing, groups, priceRange] = await Promise.all([
-      getCatalogListing(scopeWhere, catalogParams, PAGE_SIZE),
-      getFilterGroups(scopeWhere, catalogParams, filterKeys),
-      getPriceRange(scopeWhere, catalogParams),
+      getCachedCatalogListing(scopeWhere, catalogParams, PAGE_SIZE),
+      getCachedFilterGroups(scopeWhere, catalogParams, filterKeys),
+      getCachedPriceRange(scopeWhere, catalogParams),
     ]);
   } catch {
     return (
@@ -97,7 +96,7 @@ export default async function SubcategoryPage({
         { value: "price_desc", label: "Price — High to Low" },
       ]}
       sortValue={catalogParams.sort}
-      products={listing.products.map(serializeProductCard)}
+      products={listing.products}
       exploreHref={`/category/${slug}`}
     />
   );

@@ -7,12 +7,11 @@ import type { MultiFilterKey } from "@/lib/catalog-url";
 import { MULTI_KEYS } from "@/lib/catalog-url";
 import {
   buildPricePresets,
-  getCatalogListing,
-  getCollectionBySlug,
-  getFilterGroups,
-  getPriceRange,
+  getCachedCatalogListing,
+  getCachedCollectionBySlug,
+  getCachedFilterGroups,
+  getCachedPriceRange,
   parseCatalogParams,
-  serializeProductCard,
   type SearchParams,
 } from "@/lib/catalog";
 
@@ -25,7 +24,7 @@ export async function generateMetadata({
   params,
 }: CollectionPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const collection = await getCollectionBySlug(slug);
+  const collection = await getCachedCollectionBySlug(slug);
   if (!collection) return { title: "Collection not found" };
   const url = `${SITE_URL}/collection/${slug}`;
   const description =
@@ -49,7 +48,7 @@ export default async function CollectionPage({
   const { slug } = await params;
   const current = await searchParams;
 
-  const collection = await getCollectionBySlug(slug);
+  const collection = await getCachedCollectionBySlug(slug);
   if (!collection) notFound();
 
   const catalogParams = parseCatalogParams(current);
@@ -65,9 +64,9 @@ export default async function CollectionPage({
   let priceRange;
   try {
     [listing, groups, priceRange] = await Promise.all([
-      getCatalogListing(scopeWhere, catalogParams, PAGE_SIZE),
-      getFilterGroups(scopeWhere, catalogParams, filterKeys),
-      getPriceRange(scopeWhere, catalogParams),
+      getCachedCatalogListing(scopeWhere, catalogParams, PAGE_SIZE),
+      getCachedFilterGroups(scopeWhere, catalogParams, filterKeys),
+      getCachedPriceRange(scopeWhere, catalogParams),
     ]);
   } catch {
     return (
@@ -101,7 +100,7 @@ export default async function CollectionPage({
         { value: "price_desc", label: "Price — High to Low" },
       ]}
       sortValue={catalogParams.sort}
-      products={listing.products.map(serializeProductCard)}
+      products={listing.products}
       exploreHref="/"
     />
   );

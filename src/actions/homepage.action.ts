@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getVerifiedAdmin } from "@/lib/admin";
 import {
@@ -56,6 +56,7 @@ export async function saveHomepageSectionAction(
     }
 
     revalidatePath("/");
+    revalidateTag("catalog", "max");
     revalidatePath("/admin/homepage");
     return { ok: true, message: `Updated section "${sectionInput.title}".` };
   } catch (err) {
@@ -140,6 +141,7 @@ export async function toggleProductHomepageAction(
     });
 
     revalidatePath("/");
+    revalidateTag("catalog", "max");
     revalidatePath("/admin/homepage");
     return {
       ok: true,
@@ -183,6 +185,7 @@ export async function reorderHomepageSectionsAction(
     await saveHomepageConfig(config);
 
     revalidatePath("/");
+    revalidateTag("catalog", "max");
     revalidatePath("/admin/homepage");
     return { ok: true, message: "Homepage section order updated." };
   } catch (err) {

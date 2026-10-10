@@ -2,14 +2,17 @@
 // no tsvector column — see plan §8 vs. current schema) with JS relevance
 // ranking, plus suggestions + pre-typing trending data.
 import type { Prisma } from "@prisma/client";
+import { unstable_cache } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
 import {
   getCatalogListing,
   productCardSelect,
+  serializeProductCard,
   type CatalogListing,
   type CatalogParams,
   type ProductCardData,
+  type SerializedListing,
 } from "@/lib/catalog";
 
 // ─── Where builder ──────────────────────────────────────────────────────────
@@ -211,3 +214,21 @@ export async function getTrendingSearch(): Promise<SearchSuggestions> {
   const firstCategories = categories.slice(0, 6);
   return { products, categories: firstCategories, collections };
 }
+
+// ─── Cached search listing ───────────────────────────────────────────────────
+// Same rationale as the catalogue wrappers: cache only serialisable data so
+// repeat searches (and pagination) are served without opening a MySQL
+// connection. Relevance ranking is deterministic for a given query, so the
+// result is safe to memoise for the revalidate window.
+
+export const getCachedSearchCatalog = unstable_cache(
+  async (
+    searchParams: SearchParams,
+    pageSize = 48
+  ): Promise<SerializedListing> => {
+    const listing = await searchCatalog(searchParams, pageSize);
+    return { ...listing, products: listing.products.map(serializeProductCard) };
+  },
+  ["search", "listing"],
+  { revalidate: 300, tags: ["catalog"] }
+);

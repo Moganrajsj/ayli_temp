@@ -6,6 +6,8 @@
 // those params, and facet option counts are computed against the *current*
 // scope (dependent filters) so no empty/irrelevant group is ever rendered.
 import type { Prisma } from "@prisma/client";
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
 import { discountPercent, formatINR } from "@/lib/utils";
@@ -588,7 +590,7 @@ const pdpInclude = {
   },
 } satisfies Prisma.ProductInclude;
 
-export async function getProductBySlug(slug: string): Promise<PdpData | null> {
+async function getProductBySlugImpl(slug: string): Promise<PdpData | null> {
   const product = await prisma.product.findFirst({
     where: { slug, isActive: true },
     include: pdpInclude,
@@ -637,7 +639,11 @@ export async function getProductBySlug(slug: string): Promise<PdpData | null> {
   return { product, variants, colours, discountPercent };
 }
 
-export async function getRelatedProducts(
+// React's per-request cache so `generateMetadata` and the page body share a
+// single PDP query instead of each re-querying MySQL.
+export const getProductBySlug = cache(getProductBySlugImpl);
+
+async function getRelatedProductsImpl(
   productId: string,
   categoryId: string,
   limit = 8
@@ -653,6 +659,8 @@ export async function getRelatedProducts(
   );
   return listing.products;
 }
+
+export const getRelatedProducts = cache(getRelatedProductsImpl);
 
 // ─── Client-safe serialization (shared by pages + search API + components) ───
 
@@ -687,3 +695,80 @@ export function serializeProductCard(
     colours: card.variants.length,
   };
 }
+
+// ─── Cached read wrappers ────────────────────────────────────────────────────
+//
+// Public catalogue pages are request-dynamic (they read searchParams) yet the
+// data only depends on those params, so identical URLs return identical rows.
+// Wrapping the reads in `unstable_cache` serves repeat views from Next's data
+// cache and — crucially — opens no MySQL connection on a cache hit. This keeps
+// usage under the shared Hostinger `max_connections_per_hour` cap.
+//
+// Only serialisable (plain JSON) values are cached here: `getCatalogListing`
+// returns Prisma `Decimal` instances that would not survive serialisation, so
+// `getCachedCatalogListing` maps to `SerializedProductCard` first.
+
+const CATALOG_CACHE_TTL = 300;
+const CATALOG_CACHE_TAGS = ["catalog"];
+
+export interface SerializedListing {
+  products: SerializedProductCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export const getCachedCatalogListing = unstable_cache(
+  async (
+    scopeWhere: Prisma.ProductWhereInput,
+    params: CatalogParams,
+    pageSize = 48
+  ): Promise<SerializedListing> => {
+    const listing = await getCatalogListing(scopeWhere, params, pageSize);
+    return { ...listing, products: listing.products.map(serializeProductCard) };
+  },
+  ["catalog", "listing"],
+  { revalidate: CATALOG_CACHE_TTL, tags: CATALOG_CACHE_TAGS }
+);
+
+export const getCachedFilterGroups = unstable_cache(
+  async (
+    scopeWhere: Prisma.ProductWhereInput,
+    params: CatalogParams,
+    keys: readonly MultiFilterKey[]
+  ): Promise<FilterGroup[]> => getFilterGroups(scopeWhere, params, keys),
+  ["catalog", "filter-groups"],
+  { revalidate: CATALOG_CACHE_TTL, tags: CATALOG_CACHE_TAGS }
+);
+
+export const getCachedPriceRange = unstable_cache(
+  async (
+    scopeWhere: Prisma.ProductWhereInput,
+    params: CatalogParams
+  ): Promise<PriceRange> => getPriceRange(scopeWhere, params),
+  ["catalog", "price-range"],
+  { revalidate: CATALOG_CACHE_TTL, tags: CATALOG_CACHE_TAGS }
+);
+
+export const getCachedCategoryBySlug = unstable_cache(
+  async (slug: string): Promise<CategoryMeta | null> => getCategoryBySlug(slug),
+  ["catalog", "category"],
+  { revalidate: CATALOG_CACHE_TTL, tags: CATALOG_CACHE_TAGS }
+);
+
+export const getCachedSubcategoryBySlug = unstable_cache(
+  async (
+    categorySlug: string,
+    subcategorySlug: string
+  ): Promise<(ScopeMeta & { category: ScopeMeta }) | null> =>
+    getSubcategoryBySlug(categorySlug, subcategorySlug),
+  ["catalog", "subcategory"],
+  { revalidate: CATALOG_CACHE_TTL, tags: CATALOG_CACHE_TAGS }
+);
+
+export const getCachedCollectionBySlug = unstable_cache(
+  async (slug: string): Promise<ScopeMeta | null> => getCollectionBySlug(slug),
+  ["catalog", "collection"],
+  { revalidate: CATALOG_CACHE_TTL, tags: CATALOG_CACHE_TAGS }
+);

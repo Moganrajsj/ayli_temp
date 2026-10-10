@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
   productCardSelect,
@@ -165,6 +166,14 @@ export async function getHomepageCategorySections(): Promise<
 
   return results.filter((r) => r.products.length > 0);
 }
+
+// Cached wrapper: the homepage section payload is portable JSON, so it can be
+// memoised to avoid re-running the per-category queries on every visit.
+export const getCachedHomepageCategorySections = unstable_cache(
+  getHomepageCategorySections,
+  ["homepage", "category-sections"],
+  { revalidate: 300, tags: ["catalog"] }
+);
 
 export interface AdminCategoryWithProducts {
   id: string;

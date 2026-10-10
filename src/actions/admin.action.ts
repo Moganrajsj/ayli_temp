@@ -1,6 +1,7 @@
 "use server";
 
 import { Prisma, type OrderStatus } from "@prisma/client";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getVerifiedAdmin } from "@/lib/admin";
 import {
@@ -139,6 +140,7 @@ export async function createProductAction(input: AdminProductInput): Promise<Adm
       });
       return created;
     });
+    revalidateTag("catalog", "max");
     return { ok: true, id: product.id, message: "Product created." };
   } catch {
     return { ok: false, message: "Could not save product. Check for duplicate variant SKUs." };
@@ -240,6 +242,7 @@ export async function updateProductAction(
         }
       }
     });
+    revalidateTag("catalog", "max");
     return { ok: true, message: "Product saved." };
   } catch {
     return {
@@ -257,10 +260,12 @@ export async function deleteProductAction(id: string): Promise<AdminActionResult
   if (hasOrderItems) {
     // Keep the record for order history; just remove it from the storefront.
     await prisma.product.update({ where: { id }, data: { isActive: false } });
+    revalidateTag("catalog", "max");
     return { ok: true, message: "Product hidden from storefront (has order history)." };
   }
 
   await prisma.product.delete({ where: { id } });
+  revalidateTag("catalog", "max");
   return { ok: true, message: "Product deleted." };
 }
 
@@ -268,6 +273,7 @@ export async function setProductActiveAction(id: string, isActive: boolean): Pro
   const admin = await requireAdmin();
   if (!admin) return notAuthorized();
   await prisma.product.update({ where: { id }, data: { isActive } });
+  revalidateTag("catalog", "max");
   return { ok: true, message: isActive ? "Product activated." : "Product deactivated." };
 }
 
@@ -328,6 +334,7 @@ export async function createCategoryAction(
   if (exists) return { ok: false, fieldErrors: { slug: "This slug is already in use." } };
 
   const created = await prisma.category.create({ data: parsed.data, select: { id: true } });
+  revalidateTag("catalog", "max");
   return { ok: true, id: created.id, message: "Category created." };
 }
 
@@ -352,6 +359,7 @@ export async function updateCategoryAction(
   if (dup) return { ok: false, fieldErrors: { slug: "This slug is already in use." } };
 
   await prisma.category.update({ where: { id }, data: parsed.data });
+  revalidateTag("catalog", "max");
   return { ok: true, message: "Category saved." };
 }
 
@@ -377,6 +385,7 @@ export async function createSubcategoryAction(
   if (dup) return { ok: false, fieldErrors: { slug: "This slug already exists in the category." } };
 
   const created = await prisma.subcategory.create({ data: parsed.data, select: { id: true } });
+  revalidateTag("catalog", "max");
   return { ok: true, id: created.id, message: "Subcategory created." };
 }
 
@@ -398,6 +407,7 @@ export async function updateSubcategoryAction(
   if (!parsed.success) return { ok: false, fieldErrors: formatFieldErrors(parsed.error.issues) };
 
   await prisma.subcategory.update({ where: { id }, data: parsed.data });
+  revalidateTag("catalog", "max");
   return { ok: true, message: "Subcategory saved." };
 }
 
@@ -406,6 +416,7 @@ export async function deleteSubcategoryAction(id: string): Promise<AdminActionRe
   if (!admin) return notAuthorized();
   try {
     await prisma.subcategory.delete({ where: { id } });
+    revalidateTag("catalog", "max");
     return { ok: true, message: "Subcategory deleted." };
   } catch {
     return { ok: false, message: "Move products out of this subcategory before deleting it." };
@@ -432,6 +443,7 @@ export async function createCollectionAction(formData: FormData): Promise<AdminA
   if (dup) return { ok: false, fieldErrors: { slug: "This slug is already in use." } };
 
   const created = await prisma.collection.create({ data: parsed.data, select: { id: true } });
+  revalidateTag("catalog", "max");
   return { ok: true, id: created.id, message: "Collection created." };
 }
 
@@ -453,6 +465,7 @@ export async function updateCollectionAction(id: string, formData: FormData): Pr
   if (dup) return { ok: false, fieldErrors: { slug: "This slug is already in use." } };
 
   await prisma.collection.update({ where: { id }, data: parsed.data });
+  revalidateTag("catalog", "max");
   return { ok: true, message: "Collection saved." };
 }
 

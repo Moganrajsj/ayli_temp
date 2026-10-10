@@ -8,15 +8,14 @@ import type { MultiFilterKey } from "@/lib/catalog-url";
 import { MULTI_KEYS } from "@/lib/catalog-url";
 import {
   buildPricePresets,
-  getFilterGroups,
-  getPriceRange,
+  getCachedFilterGroups,
+  getCachedPriceRange,
   parseCatalogParams,
-  serializeProductCard,
   type SearchParams as CatalogSearchParams,
 } from "@/lib/catalog";
 import {
   buildSearchWhere,
-  searchCatalog,
+  getCachedSearchCatalog,
   type SearchSortKey,
   type SearchParams as SearchInputParams,
 } from "@/lib/search";
@@ -76,9 +75,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   let priceRange;
   try {
     [listing, groups, priceRange] = await Promise.all([
-      searchCatalog(searchInput, PAGE_SIZE),
-      getFilterGroups(buildSearchWhere(query), catalogParams, filterKeys),
-      getPriceRange(buildSearchWhere(query), catalogParams),
+      getCachedSearchCatalog(searchInput, PAGE_SIZE),
+      getCachedFilterGroups(buildSearchWhere(query), catalogParams, filterKeys),
+      getCachedPriceRange(buildSearchWhere(query), catalogParams),
     ]);
   } catch {
     return (
@@ -110,7 +109,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         presets={buildPricePresets(priceRange)}
         sortOptions={SEARCH_SORT_OPTIONS}
         sortValue={searchInput.sort}
-        products={listing.products.map(serializeProductCard)}
+        products={listing.products}
         emptyTitle={`No results for “${query}”`}
         emptyDescription="Check the spelling, or try a broader term like “dress”, “blue” or “rayon”."
         exploreHref="/"

@@ -39,7 +39,7 @@ export interface CatalogListingViewProps {
     name: string;
     productCount: number;
   }>;
-  listing: CatalogListing;
+  listing: Pick<CatalogListing, "total" | "page" | "pageCount">;
   groups: FilterGroup[];
   priceRange: PriceRange;
   presets: PricePreset[];

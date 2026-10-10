@@ -1,6 +1,7 @@
-// Always fetch fresh products from the database (no static pre-rendering)
+// Rendered on demand, but all catalogue reads are cached (see getCached* in
+// lib/catalog + lib/homepage-config), so repeat visits within the revalidate
+// window are served without opening a MySQL connection.
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 import Image from "next/image";
 import Link from "next/link";
@@ -8,11 +9,11 @@ import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import { WhatsAppButton } from "@/components/whatsapp/whatsapp-button";
-import { getCatalogListing, serializeProductCard } from "@/lib/catalog";
+import { getCachedCatalogListing, serializeProductCard } from "@/lib/catalog";
 import { HeroSlider } from "@/components/layout/hero-slider";
 import { VideoText } from "@/components/ui/video-text";
 import { NewArrivalsSection } from "@/components/product/new-arrivals-section";
-import { getHomepageCategorySections } from "@/lib/homepage-config";
+import { getCachedHomepageCategorySections } from "@/lib/homepage-config";
 import { CategoryProductSection } from "@/components/product/category-product-section";
 import { GoogleReviewsSection } from "@/components/home/google-reviews-section";
 import { AnimateOnMount } from "@/components/ui/motion";
@@ -70,17 +71,17 @@ const PROMISES = [
 
 export default async function HomePage() {
   let featured = [] as ReturnType<typeof serializeProductCard>[];
-  let categorySections: Awaited<ReturnType<typeof getHomepageCategorySections>> = [];
+  let categorySections: Awaited<ReturnType<typeof getCachedHomepageCategorySections>> = [];
   try {
     const [listing, sections] = await Promise.all([
-      getCatalogListing(
+      getCachedCatalogListing(
         { isActive: true, isFeatured: true },
         { sort: "newest", page: 1, facets: {} },
         12
       ),
-      getHomepageCategorySections(),
+      getCachedHomepageCategorySections(),
     ]);
-    featured = listing.products.map(serializeProductCard);
+    featured = listing.products;
     categorySections = sections;
   } catch {
     // Homepage renders gracefully without catalogue data (e.g. DB briefly down).
