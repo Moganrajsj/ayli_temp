@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { SITE_URL } from "@/config/constants";
 import { CatalogListingView } from "@/components/catalog/catalog-listing-view";
 import { ErrorState } from "@/components/ui/error-state";
+import { logServerError } from "@/lib/db-error";
 import type { MultiFilterKey } from "@/lib/catalog-url";
 import { MULTI_KEYS } from "@/lib/catalog-url";
 import {
@@ -68,7 +69,8 @@ export default async function CollectionPage({
       getCachedFilterGroups(scopeWhere, catalogParams, filterKeys),
       getCachedPriceRange(scopeWhere, catalogParams),
     ]);
-  } catch {
+  } catch (error) {
+    logServerError("collection", error);
     return (
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <ErrorState title="Could not load this collection" />

@@ -708,7 +708,7 @@ export function serializeProductCard(
 // returns Prisma `Decimal` instances that would not survive serialisation, so
 // `getCachedCatalogListing` maps to `SerializedProductCard` first.
 
-const CATALOG_CACHE_TTL = 300;
+const CATALOG_CACHE_TTL = 3600; // 1 hour — repeated views within the window cost zero DB connections
 const CATALOG_CACHE_TAGS = ["catalog"];
 
 export interface SerializedListing {

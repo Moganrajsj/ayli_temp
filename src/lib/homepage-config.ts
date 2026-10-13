@@ -172,7 +172,7 @@ export async function getHomepageCategorySections(): Promise<
 export const getCachedHomepageCategorySections = unstable_cache(
   getHomepageCategorySections,
   ["homepage", "category-sections"],
-  { revalidate: 300, tags: ["catalog"] }
+  { revalidate: 3600, tags: ["catalog"] }
 );
 
 export interface AdminCategoryWithProducts {

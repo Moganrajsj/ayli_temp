@@ -2,5 +2,6 @@
   "name": "ayli-womens",
   "framework": "nextjs",
   "buildCommand": "next build",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "regions": ["bom1"]
 }

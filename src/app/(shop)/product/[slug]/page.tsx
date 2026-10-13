@@ -8,6 +8,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
 import { ErrorState } from "@/components/ui/error-state";
+import { logServerError } from "@/lib/db-error";
 import { ProductView } from "@/components/product/product-view";
 import { WishlistButton } from "@/components/product/wishlist-button";
 import { Accordion } from "@/components/product/accordion";
@@ -120,7 +121,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
       wishlisted = await isWishlisted(session.user.id, data.product.id);
     }
   } catch (error) {
+    // Preserve Next.js control-flow errors (notFound(), redirect()).
     if (error && typeof error === "object" && "digest" in error) throw error;
+    logServerError("product", error);
     return (
       <PageContainer className="py-16">
         <ErrorState title="Could not load this product" />

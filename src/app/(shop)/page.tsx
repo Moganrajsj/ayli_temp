@@ -14,6 +14,7 @@ import { HeroSlider } from "@/components/layout/hero-slider";
 import { VideoText } from "@/components/ui/video-text";
 import { NewArrivalsSection } from "@/components/product/new-arrivals-section";
 import { getCachedHomepageCategorySections } from "@/lib/homepage-config";
+import { logServerError } from "@/lib/db-error";
 import { CategoryProductSection } from "@/components/product/category-product-section";
 import { GoogleReviewsSection } from "@/components/home/google-reviews-section";
 import { AnimateOnMount } from "@/components/ui/motion";
@@ -83,8 +84,10 @@ export default async function HomePage() {
     ]);
     featured = listing.products;
     categorySections = sections;
-  } catch {
-    // Homepage renders gracefully without catalogue data (e.g. DB briefly down).
+  } catch (error) {
+    // Homepage still renders without catalogue data (e.g. DB briefly down), but
+    // the cause must be visible in the runtime logs.
+    logServerError("homepage", error);
   }
 
   return (

@@ -3,6 +3,7 @@ import { CatalogListingView } from "@/components/catalog/catalog-listing-view";
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { logServerError } from "@/lib/db-error";
 import { Icon } from "@/components/ui/icons";
 import type { MultiFilterKey } from "@/lib/catalog-url";
 import { MULTI_KEYS } from "@/lib/catalog-url";
@@ -79,7 +80,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       getCachedFilterGroups(buildSearchWhere(query), catalogParams, filterKeys),
       getCachedPriceRange(buildSearchWhere(query), catalogParams),
     ]);
-  } catch {
+  } catch (error) {
+    logServerError("search", error);
     return (
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <ErrorState title="Search is unavailable right now" />
