@@ -52,8 +52,8 @@ export default function TermsPage() {
           <section>
             <h2 className="font-display text-xl font-semibold text-ink">4. Shipping & delivery</h2>
             <p className="mt-2">
-              Standard shipping is free on orders above ₹999. Express shipping is available at ₹99
-              extra. Dispatch occurs within 24 hours on business days. Delivery timelines are estimates
+              We offer Free Shipping on orders above ₹499 and Standard Shipping (₹99) on orders below
+              ₹499. Dispatch occurs within 24 hours on business days. Delivery timelines are estimates
               and not guaranteed. Risk of loss transfers to you upon delivery to the address provided.
             </p>
           </section>
@@ -62,9 +62,9 @@ export default function TermsPage() {
             <h2 className="font-display text-xl font-semibold text-ink">5. Returns & refunds</h2>
             <p className="mt-2">
               Please refer to our <a href="/return-refund" className="font-medium text-ayli-blue hover:underline">Return &amp; Refund Policy</a> for
-              full details. Items must be returned within 15 days of delivery in unworn, original
-              condition. Refunds are processed to the original payment method within 5–7 business
-              days of receiving the return.
+              full details. Return requests must be submitted within 7 days of delivery with a mandatory
+              unboxing video in unworn, original condition. Refunds are processed to the original payment method
+              within 5–7 business days of receiving and verifying the return.
             </p>
           </section>
 

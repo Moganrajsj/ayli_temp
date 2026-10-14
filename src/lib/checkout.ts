@@ -1,10 +1,11 @@
 // Shared checkout contracts — safe to import from both server actions and
 // client components (values here are never exported from "use server" files).
 
-export const EXPRESS_SHIPPING_FEE = 99;
-export const COD_FEE = 49;
+export const FREE_SHIPPING_THRESHOLD = 499;
+export const STANDARD_SHIPPING_FEE = 99;
+export const COD_FEE = 19;
 
-export type ShippingMethod = "standard" | "express";
+export type ShippingMethod = "standard" | "free" | "express";
 export type PaymentMethodChoice = "upi" | "card" | "cod";
 
 export interface CheckoutAddress {

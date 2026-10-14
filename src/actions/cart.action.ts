@@ -61,22 +61,33 @@ export async function addToCart(
   if (available === null) return { ok: false, message: "This option is no longer available." };
   if (available <= 0) return { ok: false, message: "This option is out of stock." };
 
+  const maxStock = Math.min(MAX_LINE_QTY, available);
   const add = capQuantity(qty, available);
   const cart = await getOrCreateCart(user.id);
 
+  let errorMsg: string | null = null;
   await prisma.$transaction(async (tx) => {
     const existing = await tx.cartItem.findUnique({
       where: { cartId_variantId: { cartId: cart.id, variantId } },
     });
     if (existing) {
+      if (existing.quantity >= maxStock) {
+        errorMsg = `You already have all available stock (${maxStock}) in your bag.`;
+        return;
+      }
+      const newQty = Math.min(maxStock, existing.quantity + add);
       await tx.cartItem.update({
         where: { id: existing.id },
-        data: { quantity: Math.min(MAX_LINE_QTY, existing.quantity + add) },
+        data: { quantity: newQty },
       });
     } else {
-      await tx.cartItem.create({ data: { cartId: cart.id, variantId, quantity: add } });
+      await tx.cartItem.create({ data: { cartId: cart.id, variantId, quantity: Math.min(maxStock, add) } });
     }
   });
+
+  if (errorMsg) {
+    return { ok: false, message: errorMsg };
+  }
 
   return { ok: true, count: await getServerCartCount(user.id) };
 }

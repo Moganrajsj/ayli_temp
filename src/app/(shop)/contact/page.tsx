@@ -59,7 +59,7 @@ export default function ContactPage() {
             <div>
               <dt className="font-semibold text-ink">Returns & exchanges?</dt>
               <dd className="mt-1 text-muted">
-                See our <a href="/return-refund" className="font-medium text-ayli-blue hover:underline">return policy</a> — most items can be returned within 15 days.
+                See our <a href="/return-refund" className="font-medium text-ayli-blue hover:underline">return policy</a> — items can be returned within 7 days with an unboxing video.
               </dd>
             </div>
           </dl>

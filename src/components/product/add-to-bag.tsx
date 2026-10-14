@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { cn, formatINR } from "@/lib/utils";
 import type { PdpVariant } from "@/lib/catalog";
 import { Icon } from "@/components/ui/icons";
@@ -22,8 +23,10 @@ export interface AddToBagProps {
 }
 
 /**
- * PDP buy box: variant selection + quantity + sticky Add-to-Bag bar.
- * Guests write to the localStorage cart; signed-in users add server-side.
+ * PDP buy box: variant selection + quantity + Add-to-Bag / Go-to-Bag.
+ * Guests write to localStorage cart; signed-in users add server-side.
+ * Behavior matches Myntra: when added, button transitions to "Go to Bag"
+ * with no interrupting popup so customers can continue browsing freely.
  */
 export function AddToBag({
   productName,
@@ -72,15 +75,6 @@ export function AddToBag({
     setRawSelectedSize(size);
   };
 
-  const [quantity, setQuantity] = useState(1);
-  const [pending, setPending] = useState(false);
-  const [justAdded, setJustAdded] = useState(false);
-
-  const flashAdded = () => {
-    setJustAdded(true);
-    window.setTimeout(() => setJustAdded(false), 1600);
-  };
-
   const selectedVariant = useMemo(
     () =>
       variants.find(
@@ -89,34 +83,67 @@ export function AddToBag({
     [variants, selectedColour, selectedSize]
   );
 
-  const canAdd = Boolean(selectedVariant && selectedVariant.availability.available);
+  // Compute live available stock for selected variant
+  const availableStock = useMemo(() => {
+    if (!selectedVariant) return 0;
+    const stock =
+      (selectedVariant.availability.stockQuantity ?? 0) -
+      (selectedVariant.availability.reservedQuantity ?? 0);
+    return Math.max(0, stock);
+  }, [selectedVariant]);
+
+  const maxSelectable = Math.max(1, Math.min(5, availableStock || 1));
+
+  const [quantity, setQuantity] = useState(1);
+  const [pending, setPending] = useState(false);
+  const [addedVariantIds, setAddedVariantIds] = useState<Set<string>>(() => new Set());
+
+  // Initialize guest cart items if unauthenticated
+  useEffect(() => {
+    if (status !== "authenticated") {
+      const guestIds = new Set(useCartStore.getState().items.map((i) => i.variantId));
+      setAddedVariantIds(guestIds);
+    }
+  }, [status]);
+
+  // Auto-clamp quantity if variant changes to one with lower stock
+  useEffect(() => {
+    if (quantity > maxSelectable) {
+      setQuantity(maxSelectable);
+    }
+  }, [maxSelectable, quantity]);
+
+  const isAdded = Boolean(selectedVariant && addedVariantIds.has(selectedVariant.id));
+  const canAdd = Boolean(selectedVariant && selectedVariant.availability.available && availableStock > 0);
   const displayPrice = selectedVariant?.price ?? basePrice;
   const totalPrice = displayPrice * quantity;
 
   const handleAdd = async () => {
-    if (!selectedVariant || !canAdd) {
-      toast("Select a colour and size to continue", "info");
+    if (!selectedVariant || !canAdd || availableStock <= 0) {
+      toast("Please select an available colour and size", "info");
       return;
     }
 
+    const qtyToAdd = Math.min(quantity, maxSelectable);
+
     if (status === "authenticated") {
       setPending(true);
-      const result = await addToCart(selectedVariant.id, quantity);
+      const result = await addToCart(selectedVariant.id, qtyToAdd);
       setPending(false);
       if (result.ok) {
-        toast(`${productName} added to your bag`, "success");
         dispatchCartUpdated();
-        flashAdded();
+        setAddedVariantIds((prev) => new Set(prev).add(selectedVariant.id));
+        toast("Added to Bag!", "success");
       } else {
         toast(result.message ?? "Could not add to your bag.", "error");
       }
       return;
     }
 
-    useCartStore.getState().addItem(selectedVariant.id, quantity);
-    toast(`${productName} added to your bag`, "success");
+    useCartStore.getState().addItem(selectedVariant.id, qtyToAdd, availableStock);
     dispatchCartUpdated();
-    flashAdded();
+    setAddedVariantIds((prev) => new Set(prev).add(selectedVariant.id));
+    toast("Added to Bag!", "success");
   };
 
   return (
@@ -131,12 +158,23 @@ export function AddToBag({
 
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm text-muted">Quantity</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted">Quantity</p>
+            {availableStock > 0 && availableStock <= 5 ? (
+              <span className="rounded-pill bg-[#c2552d]/10 px-2 py-0.5 text-[11px] font-semibold text-[#c2552d]">
+                Only {availableStock} left
+              </span>
+            ) : availableStock <= 0 ? (
+              <span className="rounded-pill bg-danger/10 px-2 py-0.5 text-[11px] font-semibold text-danger">
+                Out of stock
+              </span>
+            ) : null}
+          </div>
           <div className="mt-1.5 inline-flex items-center rounded-card border border-hairline">
             <button
               type="button"
               aria-label="Decrease quantity"
-              disabled={quantity <= 1}
+              disabled={quantity <= 1 || availableStock <= 0}
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
               className="grid h-10 w-10 place-items-center text-ink transition-colors hover:bg-soft-beige disabled:text-muted/40"
             >
@@ -151,8 +189,8 @@ export function AddToBag({
             <button
               type="button"
               aria-label="Increase quantity"
-              disabled={quantity >= 5}
-              onClick={() => setQuantity((q) => Math.min(5, q + 1))}
+              disabled={quantity >= maxSelectable || availableStock <= 0}
+              onClick={() => setQuantity((q) => Math.min(maxSelectable, q + 1))}
               className="grid h-10 w-10 place-items-center text-ink transition-colors hover:bg-soft-beige disabled:text-muted/40"
             >
               <Icon name="plus" className="h-4 w-4" />
@@ -167,26 +205,52 @@ export function AddToBag({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={handleAdd}
-        disabled={pending}
-        className={cn(
-          buttonClasses({ size: "lg", className: "hidden w-full lg:inline-flex active:scale-[0.97]" })
-        )}
-      >
-        {justAdded ? (
-          <Icon name="check" className="h-5 w-5 animate-pop-in" />
+      {/* Desktop In-Flow Button: strictly hidden on mobile to avoid duplicate buttons */}
+      <div className="hidden lg:block">
+        {isAdded ? (
+          <Link
+            href="/cart"
+            className={cn(
+              buttonClasses({
+                size: "lg",
+                className:
+                  "w-full justify-center bg-[#2e9e6d] hover:bg-[#258259] text-white shadow-soft transition-all active:scale-[0.97]",
+              })
+            )}
+          >
+            <Icon name="bag" className="h-5 w-5" />
+            Go to Bag
+            <Icon name="arrow-right" className="h-4 w-4" />
+          </Link>
         ) : (
-          <Icon name="bag" className="h-5 w-5" />
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={pending || !canAdd || availableStock <= 0}
+            className={cn(
+              buttonClasses({
+                size: "lg",
+                className: "w-full justify-center active:scale-[0.97]",
+              })
+            )}
+          >
+            <Icon name="bag" className="h-5 w-5" />
+            {pending
+              ? "Adding…"
+              : availableStock <= 0
+                ? "Out of Stock"
+                : canAdd
+                  ? `Add to Bag — ${formatINR(totalPrice)}`
+                  : "Select options"}
+          </button>
         )}
-        {pending ? "Adding…" : justAdded ? "Added to Bag" : canAdd ? `Add to Bag — ${formatINR(totalPrice)}` : "Add to Bag"}
-      </button>
+      </div>
 
-      <div className="fixed inset-x-0 bottom-20 z-30 border-t border-hairline bg-warm-white/95 px-4 py-3 backdrop-blur-md lg:hidden">
+      {/* Mobile Sticky Bar: strictly visible only on mobile, sits flush at screen bottom */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-hairline bg-warm-white/98 px-4 py-3 pb-[max(env(safe-area-inset-bottom),12px)] backdrop-blur-md lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs text-muted">
+            <p className="text-xs text-muted truncate">
               {selectedColour || selectedSize
                 ? [selectedColour, selectedSize]
                     .filter(Boolean)
@@ -198,19 +262,39 @@ export function AddToBag({
               {formatINR(totalPrice)}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleAdd}
-            disabled={pending}
-            className={buttonClasses({ size: "lg", className: "flex-1 justify-center active:scale-[0.97]" })}
-          >
-            {justAdded ? (
-              <Icon name="check" className="h-5 w-5 animate-pop-in" />
-            ) : (
+          {isAdded ? (
+            <Link
+              href="/cart"
+              className={buttonClasses({
+                size: "lg",
+                className:
+                  "flex-1 justify-center bg-[#2e9e6d] hover:bg-[#258259] text-white active:scale-[0.97]",
+              })}
+            >
               <Icon name="bag" className="h-5 w-5" />
-            )}
-            {pending ? "Adding…" : justAdded ? "Added" : canAdd ? "Add to Bag" : "Select"}
-          </button>
+              Go to Bag
+              <Icon name="arrow-right" className="h-4 w-4" />
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={pending || !canAdd || availableStock <= 0}
+              className={buttonClasses({
+                size: "lg",
+                className: "flex-1 justify-center active:scale-[0.97]",
+              })}
+            >
+              <Icon name="bag" className="h-5 w-5" />
+              {pending
+                ? "Adding…"
+                : availableStock <= 0
+                  ? "Out of stock"
+                  : canAdd
+                    ? "Add to Bag"
+                    : "Select options"}
+            </button>
+          )}
         </div>
       </div>
     </div>

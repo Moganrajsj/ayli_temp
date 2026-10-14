@@ -591,6 +591,32 @@ export function ProductForm({ mode, productId, initial, categories, collections 
     }
     setPending(true);
     const payload = buildPayload();
+
+    // Guard: detect duplicate colour+size combinations which would silently
+    // cause the DB unique constraint to discard one variant's price/stock.
+    const variantKeys = payload.variants.map((v) => `${v.colour.toLowerCase()}|${v.size.toLowerCase()}`);
+    const seen = new Set<string>();
+    const duplicates = new Set<string>();
+    for (const key of variantKeys) {
+      if (seen.has(key)) duplicates.add(key);
+      seen.add(key);
+    }
+    if (duplicates.size > 0) {
+      const dupList = [...duplicates]
+        .map((k) => {
+          const [colour, size] = k.split("|");
+          return `${colour} / ${size}`;
+        })
+        .join(", ");
+      setResult({
+        ok: false,
+        message: `Duplicate colour+size combinations found: ${dupList}. Each colour and size must be unique per product. Please remove the duplicate rows.`,
+      });
+      setPending(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
     const res = mode === "create" ? await createProductAction(payload) : await updateProductAction(productId!, payload);
     setResult(res);
     setPending(false);

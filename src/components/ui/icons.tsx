@@ -44,7 +44,8 @@ export type IconName =
   | "credit-card"
   | "banknotes"
   | "qr-code"
-  | "refresh";
+  | "refresh"
+  | "clock";
 
 function Paths({ name, solid }: { name: IconName; solid: boolean }) {
   switch (name) {
@@ -276,6 +277,13 @@ function Paths({ name, solid }: { name: IconName; solid: boolean }) {
           <path d="M1 4v6h6" />
           <path d="M23 20v-6h-6" />
           <path d="M20.5 9A9 9 0 0 0 5.2 5.2L1 10M23 14l-4.2 4.8A9 9 0 0 1 3.5 15" />
+        </>
+      );
+    case "clock":
+      return (
+        <>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 6v6l4 2" />
         </>
       );
     default:

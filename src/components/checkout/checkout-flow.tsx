@@ -11,7 +11,7 @@ import {
   type CheckoutAddress,
   type OrderActionResult,
   type PaymentMethodChoice,
-  EXPRESS_SHIPPING_FEE,
+  FREE_SHIPPING_THRESHOLD,
   COD_FEE,
 } from "@/lib/checkout";
 import {
@@ -43,8 +43,8 @@ const STEPS: Array<{ n: Step; label: string }> = [
   { n: 3, label: "Payment" },
 ];
 
-const EXPRESS_SHIPPING_LABEL = "Express (2–3 business days)";
-const STANDARD_SHIPPING_LABEL = "Standard (4–6 business days)";
+const FREE_SHIPPING_LABEL = "Free Shipping (3–5 business days)";
+const STANDARD_SHIPPING_LABEL = "Standard Shipping (3–5 business days)";
 
 export function CheckoutFlow({ addresses, lines, totals, initialError }: CheckoutFlowProps) {
   const router = useRouter();
@@ -58,8 +58,9 @@ export function CheckoutFlow({ addresses, lines, totals, initialError }: Checkou
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
     addresses[0]?.id ?? null
   );
-  const [shippingMethod, setShippingMethod] = useState<"standard" | "express">(
-    "standard"
+  const isFreeEligible = totals.shippingFree;
+  const [shippingMethod, setShippingMethod] = useState<"standard" | "free">(
+    totals.shippingFree ? "free" : "standard"
   );
   const [paymentChoice, setPaymentChoice] = useState<PaymentMethodChoice>("upi");
   const [showAddressForm, setShowAddressForm] = useState(addresses.length === 0);
@@ -71,11 +72,9 @@ export function CheckoutFlow({ addresses, lines, totals, initialError }: Checkou
     useState<CheckoutAddress[]>(addresses);
 
   const codFee = paymentChoice === "cod" ? COD_FEE : 0;
-  const standardShipping = totals.shippingFree ? 0 : totals.shipping;
-  const expressShipping = standardShipping + EXPRESS_SHIPPING_FEE;
-  const activeShipping =
-    shippingMethod === "express" ? expressShipping : standardShipping;
-  const grandTotal = totals.grandTotal + (shippingMethod === "express" ? EXPRESS_SHIPPING_FEE : 0) + codFee;
+  const standardShippingFee = isFreeEligible ? 0 : totals.shipping;
+  const activeShipping = shippingMethod === "free" ? 0 : standardShippingFee;
+  const grandTotal = totals.sellingTotal + activeShipping + codFee;
 
   const selectedAddress =
     knownAddresses.find((a) => a.id === selectedAddressId) ?? null;
@@ -434,6 +433,51 @@ export function CheckoutFlow({ addresses, lines, totals, initialError }: Checkou
                 Choose delivery
               </h2>
               <div className="grid gap-3">
+                {/* Free Shipping Option */}
+                <button
+                  type="button"
+                  disabled={!isFreeEligible}
+                  onClick={() => setShippingMethod("free")}
+                  aria-pressed={shippingMethod === "free"}
+                  className={cn(
+                    "flex items-center justify-between gap-3 rounded-card border bg-warm-white p-4 text-left transition-colors",
+                    !isFreeEligible && "opacity-60 cursor-not-allowed bg-soft-beige/40",
+                    shippingMethod === "free"
+                      ? "border-ayli-blue ring-1 ring-ayli-blue"
+                      : "border-hairline hover:border-ink/20"
+                  )}
+                >
+                  <span className="flex items-center gap-3">
+                    <span
+                      className={cn(
+                        "grid h-10 w-10 shrink-0 place-items-center rounded-full",
+                        isFreeEligible ? "bg-[#2e9e6d]/10 text-[#2e9e6d]" : "bg-muted/10 text-muted"
+                      )}
+                    >
+                      <Icon name="truck" className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="block font-medium text-ink">{FREE_SHIPPING_LABEL}</span>
+                        {isFreeEligible ? (
+                          <span className="rounded-pill bg-success/15 px-2 py-0.5 text-[10px] font-semibold text-[#2e9e6d]">
+                            Unlocked
+                          </span>
+                        ) : null}
+                      </div>
+                      <span className="block text-sm text-muted">
+                        {isFreeEligible
+                          ? "Free courier delivery on orders above ₹499 · 7-day returns"
+                          : `Add ${formatINR(FREE_SHIPPING_THRESHOLD - totals.sellingTotal)} more to unlock Free Shipping`}
+                      </span>
+                    </div>
+                  </span>
+                  <span className={cn("text-sm font-semibold", isFreeEligible ? "text-[#2e9e6d]" : "text-muted")}>
+                    {isFreeEligible ? "Free" : "Above ₹499"}
+                  </span>
+                </button>
+
+                {/* Standard Shipping Option */}
                 <button
                   type="button"
                   onClick={() => setShippingMethod("standard")}
@@ -446,36 +490,18 @@ export function CheckoutFlow({ addresses, lines, totals, initialError }: Checkou
                   )}
                 >
                   <span className="flex items-center gap-3">
-                    <Icon name="truck" className="h-5 w-5 text-ayli-blue" />
-                    <span>
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-soft-beige text-ayli-blue">
+                      <Icon name="box" className="h-5 w-5" />
+                    </span>
+                    <div>
                       <span className="block font-medium text-ink">{STANDARD_SHIPPING_LABEL}</span>
-                      <span className="block text-sm text-muted">Free delivery · 15-day easy returns</span>
-                    </span>
+                      <span className="block text-sm text-muted">
+                        Standard delivery · Dispatch within 24 hours · 7-day returns
+                      </span>
+                    </div>
                   </span>
                   <span className="text-sm font-semibold text-ink">
-                    {standardShipping === 0 ? "Free" : formatINR(standardShipping)}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShippingMethod("express")}
-                  aria-pressed={shippingMethod === "express"}
-                  className={cn(
-                    "flex items-center justify-between gap-3 rounded-card border bg-warm-white p-4 text-left transition-colors",
-                    shippingMethod === "express"
-                      ? "border-ayli-blue ring-1 ring-ayli-blue"
-                      : "border-hairline hover:border-ink/20"
-                  )}
-                >
-                  <span className="flex items-center gap-3">
-                    <Icon name="sparkles" className="h-5 w-5 text-ayli-peach" />
-                    <span>
-                      <span className="block font-medium text-ink">{EXPRESS_SHIPPING_LABEL}</span>
-                      <span className="block text-sm text-muted">Priority dispatch · 2–3 business days</span>
-                    </span>
-                  </span>
-                  <span className="text-sm font-semibold text-ink">
-                    {formatINR(expressShipping)}
+                    {standardShippingFee === 0 ? "Free" : formatINR(standardShippingFee)}
                   </span>
                 </button>
               </div>
@@ -661,7 +687,7 @@ export function CheckoutFlow({ addresses, lines, totals, initialError }: Checkou
                     {selectedAddress?.city}, {selectedAddress?.state} — {selectedAddress?.pincode}
                   </p>
                   <p className="mt-1 text-xs text-muted">
-                    {shippingMethod === "express" ? EXPRESS_SHIPPING_LABEL : STANDARD_SHIPPING_LABEL}
+                    {shippingMethod === "free" ? FREE_SHIPPING_LABEL : STANDARD_SHIPPING_LABEL}
                   </p>
                 </div>
                 <Link
@@ -697,7 +723,9 @@ export function CheckoutFlow({ addresses, lines, totals, initialError }: Checkou
                 <dd className="font-medium text-[#2e9e6d]">−{formatINR(totals.savings)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-muted">Shipping ({shippingMethod})</dt>
+                <dt className="text-muted">
+                  Shipping ({shippingMethod === "free" ? "Free" : "Standard"})
+                </dt>
                 <dd className="text-ink">
                   {activeShipping === 0 ? "Free" : formatINR(activeShipping)}
                 </dd>
@@ -723,7 +751,7 @@ export function CheckoutFlow({ addresses, lines, totals, initialError }: Checkou
 
           <p className="flex items-center gap-2 rounded-card bg-soft-beige px-4 py-3 text-xs text-muted">
             <Icon name="truck" className="h-4 w-4 shrink-0 text-ayli-blue" />
-            Dispatch within 24 hours · 15-day easy returns
+            Dispatch within 24 hours · 7-day easy returns
           </p>
         </aside>
       </div>

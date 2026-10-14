@@ -3,8 +3,8 @@
 // of all taxes (see PDP copy), so the only extra is shipping.
 import { prisma } from "@/lib/prisma";
 
-export const FREE_SHIPPING_THRESHOLD = 999;
-export const STANDARD_SHIPPING_FEE = 99;
+import { FREE_SHIPPING_THRESHOLD, STANDARD_SHIPPING_FEE } from "@/lib/checkout";
+export { FREE_SHIPPING_THRESHOLD, STANDARD_SHIPPING_FEE };
 export const MAX_LINE_QTY = 5;
 
 export interface CartLineInput {
@@ -134,16 +134,27 @@ export async function resolveCartLines(
     const active = Boolean(variant.isActive && variant.product.isActive);
     const selling = unitPrice(variant, variant.product);
     const mrp = variant.product.mrp.toNumber();
-    const quantity = Math.max(
+    const rawQuantity = Math.max(
       1,
       Math.min(MAX_LINE_QTY, Math.floor(input.quantity || 0))
     );
     const maxQty = !active || available <= 0 ? 0 : Math.min(MAX_LINE_QTY, available);
+    const effectiveQty = active && available > 0 ? Math.min(rawQuantity, maxQty) : rawQuantity;
+
+    // Self-heal cartItem in DB if stored quantity exceeded available stock
+    if (input.id && effectiveQty > 0 && input.quantity !== effectiveQty) {
+      void prisma.cartItem
+        .update({
+          where: { id: input.id },
+          data: { quantity: effectiveQty },
+        })
+        .catch(() => {});
+    }
 
     lines.push({
       id: input.id ?? null,
       variantId: variant.id,
-      quantity: active && available > 0 ? Math.min(quantity, maxQty || quantity) : quantity,
+      quantity: effectiveQty,
       productId: variant.product.id,
       productSlug: variant.product.slug,
       name: variant.product.name,
@@ -153,8 +164,8 @@ export async function resolveCartLines(
       size: variant.size,
       unitSelling: selling,
       unitMrp: mrp,
-      lineSelling: selling * quantity,
-      lineMrp: mrp * quantity,
+      lineSelling: selling * effectiveQty,
+      lineMrp: mrp * effectiveQty,
       discountPercent:
         mrp > selling ? Math.round(((mrp - selling) / mrp) * 100) : 0,
       available,

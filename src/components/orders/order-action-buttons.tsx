@@ -19,6 +19,7 @@ interface OrderActionButtonsProps {
   total: number;
   customerName: string;
   customerPhone: string;
+  deliveredAt?: string | null;
   items: Array<{ id: string; name: string; colour: string; size: string; quantity: number }>;
 }
 
@@ -31,6 +32,7 @@ export function OrderActionButtons({
   total,
   customerName,
   customerPhone,
+  deliveredAt,
   items,
 }: OrderActionButtonsProps) {
   const router = useRouter();
@@ -48,7 +50,10 @@ export function OrderActionButtons({
   const [uploadingVideo, setUploadingVideo] = useState(false);
 
   const canCancel = status === "PENDING" || status === "CONFIRMED";
-  const canReturn = status === "DELIVERED";
+  const returnExpired = status === "DELIVERED" && deliveredAt
+    ? (Date.now() - new Date(deliveredAt).getTime()) / (1000 * 60 * 60 * 24) > 7
+    : false;
+  const canReturn = status === "DELIVERED" && !returnExpired;
   const canRetryPayment = status === "PENDING" && paymentStatus === "PENDING";
 
   const handleCancel = async () => {
@@ -143,6 +148,10 @@ export function OrderActionButtons({
       toast("Please select a return reason.", "info");
       return;
     }
+    if (!videoUrl) {
+      toast("Unboxing video is mandatory. Please upload a video to proceed.", "error");
+      return;
+    }
     setPending(true);
     const res = await createReturnRequest({
       orderId,
@@ -181,6 +190,13 @@ export function OrderActionButtons({
         <Button variant="secondary" onClick={() => setShowReturnModal(true)}>
           <Icon name="refresh" className="h-4 w-4" />
           Request Return / Exchange
+        </Button>
+      ) : null}
+
+      {status === "DELIVERED" && returnExpired ? (
+        <Button variant="secondary" disabled className="cursor-not-allowed opacity-60">
+          <Icon name="clock" className="h-4 w-4" />
+          Return Window Expired (7 days)
         </Button>
       ) : null}
 
@@ -263,16 +279,21 @@ export function OrderActionButtons({
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1">
-                  Unboxing Video Proof (Max 50 MB, MP4/WebM)
+                  Unboxing Video Proof <span className="text-[#c2552d]">(Required — Max 50 MB, MP4/WebM)</span>
                 </label>
+                <p className="mb-2 text-[10px] text-muted">
+                  An unboxing video is mandatory for all return requests. Please record opening the sealed package.
+                </p>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadingVideo}
-                    className="rounded-card border border-hairline bg-soft-beige px-3 py-2 text-xs font-medium text-ink hover:border-ayli-blue"
+                    className={`rounded-card border px-3 py-2 text-xs font-medium text-ink hover:border-ayli-blue ${
+                      !videoUrl ? "border-[#c2552d] bg-[#c2552d]/5" : "border-hairline bg-soft-beige"
+                    }`}
                   >
-                    {uploadingVideo ? "Uploading Video..." : videoUrl ? "Change Video" : "Upload Video File"}
+                    {uploadingVideo ? "Uploading Video..." : videoUrl ? "Change Video" : "Upload Video File ✦ Required"}
                   </button>
                   <input
                     ref={fileInputRef}
@@ -295,7 +316,7 @@ export function OrderActionButtons({
                 <Button type="button" variant="secondary" onClick={() => setShowReturnModal(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={pending || uploadingVideo}>
+                <Button type="submit" disabled={pending || uploadingVideo || !videoUrl}>
                   {pending ? "Submitting..." : "Submit Return Request"}
                 </Button>
               </div>

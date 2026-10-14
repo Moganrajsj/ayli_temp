@@ -13,7 +13,7 @@ export interface GuestCartItem {
 
 interface CartState {
   items: GuestCartItem[];
-  addItem: (variantId: string, quantity?: number) => void;
+  addItem: (variantId: string, quantity?: number, maxStock?: number) => void;
   setQuantity: (variantId: string, quantity: number) => void;
   removeItem: (variantId: string) => void;
   clear: () => void;
@@ -25,17 +25,20 @@ export const useCartStore = create<CartState>()(
   persist(
     (set) => ({
       items: [],
-      addItem: (variantId, quantity = 1) =>
+      addItem: (variantId, quantity = 1, maxStock?: number) =>
         set((state) => {
+          const limit = maxStock != null && maxStock > 0 ? Math.min(MAX_QTY, maxStock) : MAX_QTY;
           const existing = state.items.find((i) => i.variantId === variantId);
-          const next = Math.min(MAX_QTY, quantity);
           if (!existing) {
-            return { items: [...state.items, { variantId, quantity: next }] };
+            return { items: [...state.items, { variantId, quantity: Math.min(limit, quantity) }] };
+          }
+          if (existing.quantity >= limit) {
+            return state;
           }
           return {
             items: state.items.map((i) =>
               i.variantId === variantId
-                ? { ...i, quantity: Math.min(MAX_QTY, i.quantity + quantity) }
+                ? { ...i, quantity: Math.min(limit, i.quantity + quantity) }
                 : i
             ),
           };

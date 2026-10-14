@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -22,13 +22,11 @@ function CartLineRow({
   line,
   onQuantityChange,
   onRemove,
-  pending,
   updating,
 }: {
   line: CartLine;
   onQuantityChange: (quantity: number) => void;
   onRemove: () => void;
-  pending?: boolean;
   updating?: boolean;
 }) {
   const [leaving, setLeaving] = useState(false);
@@ -78,7 +76,7 @@ function CartLineRow({
             type="button"
             aria-label="Remove item"
             onClick={handleRemove}
-            disabled={pending}
+            disabled={updating}
             className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-soft-beige hover:text-ink disabled:opacity-40"
           >
             <Icon name="x" className="h-4 w-4" />
@@ -116,7 +114,7 @@ function CartLineRow({
             <button
               type="button"
               aria-label="Decrease quantity"
-              disabled={pending || updating || line.quantity <= 1}
+              disabled={updating || line.quantity <= 1}
               onClick={() => onQuantityChange(line.quantity - 1)}
               className="grid h-9 w-9 place-items-center text-ink transition-colors hover:bg-soft-beige disabled:text-muted/40"
             >
@@ -133,7 +131,7 @@ function CartLineRow({
               type="button"
               aria-label="Increase quantity"
               disabled={
-                pending || updating || line.maxQty <= 0 || line.quantity >= line.maxQty
+                updating || line.maxQty <= 0 || line.quantity >= line.maxQty
               }
               onClick={() => onQuantityChange(line.quantity + 1)}
               className="grid h-9 w-9 place-items-center text-ink transition-colors hover:bg-soft-beige disabled:text-muted/40"
@@ -217,7 +215,6 @@ function EmptyBag({ mode }: { mode: "user" | "guest" }) {
 export function CartView({ mode, initial }: CartViewProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const [pending, startTransition] = useTransition();
 
   const guestItems = useCartStore((s) => s.items);
   const [guestPreview, setGuestPreview] = useState<SerializedCart | null>(null);
@@ -257,29 +254,29 @@ export function CartView({ mode, initial }: CartViewProps) {
 
   const userQtyChange = (itemId: string, quantity: number) => {
     setUpdatingId(itemId);
-    startTransition(async () => {
+    void (async () => {
       const result = await updateCartItem(itemId, quantity);
+      setUpdatingId(null);
       if (result.ok) {
         router.refresh();
         dispatchCartUpdated();
       } else {
         toast(result.message ?? "Could not update this item.", "error");
-        setUpdatingId(null);
       }
-    });
+    })();
   };
   const userRemove = (itemId: string) => {
     setUpdatingId(itemId);
-    startTransition(async () => {
+    void (async () => {
       const result = await removeCartItem(itemId);
+      setUpdatingId(null);
       if (result.ok) {
         router.refresh();
         dispatchCartUpdated();
       } else {
         toast(result.message ?? "Could not remove this item.", "error");
-        setUpdatingId(null);
       }
-    });
+    })();
   };
 
   const lines: CartLine[] =
@@ -336,8 +333,7 @@ export function CartView({ mode, initial }: CartViewProps) {
               <CartLineRow
                 key={mode === "guest" ? line.variantId : line.id}
                 line={line}
-                pending={pending}
-                updating={updatingId === line.id}
+                updating={updatingId === (mode === "guest" ? line.variantId : line.id)}
                 onQuantityChange={(q) =>
                   mode === "guest"
                     ? guestQtyChange(line.variantId, q)
@@ -356,7 +352,7 @@ export function CartView({ mode, initial }: CartViewProps) {
             {totals ? <TotalsPanel totals={totals} /> : null}
             <p className="flex items-center gap-2 rounded-card bg-soft-beige px-4 py-3 text-xs text-muted">
               <Icon name="truck" className="h-4 w-4 shrink-0 text-ayli-blue" />
-              Dispatch within 24 hours · 15-day easy returns
+              Dispatch within 24 hours · 7-day easy returns
             </p>
           </div>
         </div>

@@ -40,11 +40,16 @@ export async function createReturnRequest(input: {
     return { ok: false, message: "Only delivered orders are eligible for return requests." };
   }
 
-  // Verify return window (15 days from delivery or creation)
+  // Verify return window (7 days from delivery or creation)
   const deliveryDate = order.deliveredAt ?? order.updatedAt;
   const daysDiff = (Date.now() - new Date(deliveryDate).getTime()) / (1000 * 60 * 60 * 24);
-  if (daysDiff > 15) {
-    return { ok: false, message: "The 15-day return window for this order has expired." };
+  if (daysDiff > 7) {
+    return { ok: false, message: "The 7-day return window for this order has expired." };
+  }
+
+  // Unboxing video is mandatory
+  if (!input.videoUrl?.trim()) {
+    return { ok: false, message: "An unboxing video is mandatory to submit a return request." };
   }
 
   // Check if a return request already exists for this order

@@ -12,9 +12,9 @@ import {
   type OrderActionResult,
   type ShippingMethod,
   type PaymentMethodChoice,
-  EXPRESS_SHIPPING_FEE,
   COD_FEE,
 } from "@/lib/checkout";
+import { sendOrderConfirmationEmails, type OrderEmailData } from "@/lib/email";
 
 async function requireUser(): Promise<{ id: string } | null> {
   const session = await auth();
@@ -31,9 +31,10 @@ function nextOrderNumber(): string {
 }
 
 function computedShipping(method: ShippingMethod, sellingTotal: number): number {
-  const standard =
-    sellingTotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_FEE;
-  return standard + (method === "express" ? EXPRESS_SHIPPING_FEE : 0);
+  if (sellingTotal >= FREE_SHIPPING_THRESHOLD || method === "free") {
+    return 0;
+  }
+  return STANDARD_SHIPPING_FEE;
 }
 
 async function lockVariant(tx: Prisma.TransactionClient, variantId: string) {
@@ -131,7 +132,7 @@ export async function placeOrder(
   const user = await requireUser();
   if (!user) return { ok: false, message: "Please sign in to continue." };
 
-  if (method !== "standard" && method !== "express") {
+  if (method !== "standard" && method !== "free" && method !== "express") {
     return { ok: false, message: "Invalid shipping method." };
   }
 
@@ -184,7 +185,7 @@ export async function placeOrder(
             status: "CONFIRMED",
             paymentStatus: "PENDING",
             paymentMethod: "COD",
-            shippingMethod: method === "express" ? "EXPRESS" : "STANDARD",
+            shippingMethod: method === "free" ? "FREE" : "STANDARD",
             items: {
               create: sellable.map((line) => ({
                 productId: line.productId,
@@ -223,6 +224,9 @@ export async function placeOrder(
 
         return created;
       });
+
+      // Send order confirmation emails (fire-and-forget)
+      void fetchAndSendOrderEmails(createdOrder.id);
 
       revalidateAdmin();
       return {
@@ -274,7 +278,7 @@ export async function placeOrder(
           status: "PENDING",
           paymentStatus: "PENDING",
           paymentMethod: paymentMethodLabel,
-          shippingMethod: method === "express" ? "EXPRESS" : "STANDARD",
+          shippingMethod: method === "free" ? "FREE" : "STANDARD",
           items: {
             create: sellable.map((line) => ({
               productId: line.productId,
@@ -490,8 +494,62 @@ export async function verifyAndConfirmOrder(
     };
   }
 
+  // Send order confirmation emails (fire-and-forget)
+  void fetchAndSendOrderEmails(order.id);
+
   revalidateAdmin();
   return { ok: true, orderNumber: order.orderNumber };
+}
+
+/* ───────── email helper ───────── */
+
+async function fetchAndSendOrderEmails(orderId: string): Promise<void> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        user: { select: { name: true, email: true } },
+        address: true,
+        items: true,
+      },
+    });
+    if (!order) return;
+
+    const emailData: OrderEmailData = {
+      orderNumber: order.orderNumber,
+      customerName: order.user.name ?? "Valued Customer",
+      customerEmail: order.user.email,
+      items: order.items.map((item) => ({
+        name: item.name,
+        colour: item.colour,
+        size: item.size,
+        quantity: item.quantity,
+        price: Number(item.price),
+        total: Number(item.total),
+        image: item.image,
+      })),
+      subtotal: Number(order.subtotal),
+      discount: Number(order.discount),
+      shipping: Number(order.shipping),
+      total: Number(order.total),
+      paymentMethod: order.paymentMethod ?? "Online",
+      shippingMethod: order.shippingMethod === "FREE" ? "Free Shipping" : "Standard Shipping",
+      address: {
+        name: order.address.name,
+        phone: order.address.phone,
+        line1: order.address.line1,
+        line2: order.address.line2,
+        city: order.address.city,
+        state: order.address.state,
+        pincode: order.address.pincode,
+        country: order.address.country,
+      },
+    };
+
+    await sendOrderConfirmationEmails(emailData);
+  } catch (err) {
+    console.error("[email] fetchAndSendOrderEmails error:", err);
+  }
 }
 
 /* ───────── cancel / release ───────── */

@@ -192,6 +192,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
           total={Number(order.total)}
           customerName={order.address.name}
           customerPhone={order.address.phone}
+          deliveredAt={(order.deliveredAt ?? order.updatedAt)?.toISOString() ?? null}
           items={order.items.map((i) => ({
             id: i.id,
             name: i.name,

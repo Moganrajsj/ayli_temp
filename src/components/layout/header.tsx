@@ -12,7 +12,7 @@ export function Header() {
     >
       {/* Announcement bar */}
       <div className="bg-gradient-to-r from-plum via-[#9C3A58] to-ayli-peach px-4 py-2 text-center text-xs font-medium text-white/90 tracking-wide">
-        🌸 Free shipping on orders above ₹999 &nbsp;·&nbsp; Easy 15-day returns 🌸
+        🌸 Free shipping on orders above ₹499 &nbsp;·&nbsp; Easy 7-day returns 🌸
       </div>
 
       {/* Main header */}

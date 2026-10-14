@@ -5,7 +5,7 @@ import { SITE_URL } from "@/config/constants";
 export const metadata: Metadata = {
   title: "Shipping Policy",
   description:
-    "AYLI shipping options, delivery timelines, and charges — free shipping on orders above ₹999.",
+    "AYLI shipping options, delivery timelines, and charges — free shipping on orders above ₹499.",
   alternates: { canonical: `${SITE_URL}/shipping-policy` },
 };
 
@@ -14,23 +14,23 @@ export default function ShippingPolicyPage() {
     <div className="pb-16 pt-5">
       <PageContainer className="max-w-3xl">
         <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">Shipping Policy</h1>
-        <p className="mt-1 text-sm text-muted">Last updated: September 2026</p>
+        <p className="mt-1 text-sm text-muted">Last updated: October 2026</p>
 
         <div className="mt-8 space-y-8">
           <section className="rounded-card border border-hairline bg-warm-white p-6">
             <h2 className="font-display text-xl font-semibold text-ink">At a glance</h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div className="rounded-card bg-soft-beige p-4">
-                <p className="text-sm font-semibold text-ink">Standard shipping</p>
-                <p className="mt-1 font-display text-2xl font-semibold text-ayli-blue">
-                  {`Free ≥ ₹999 · ₹99`}
+                <p className="text-sm font-semibold text-ink">Free shipping</p>
+                <p className="mt-1 font-display text-2xl font-semibold text-[#2e9e6d]">
+                  Free (₹0)
                 </p>
-                <p className="mt-1 text-sm text-muted">3–5 business days</p>
+                <p className="mt-1 text-sm text-muted">Orders above ₹499 · 3–5 business days</p>
               </div>
               <div className="rounded-card bg-soft-beige p-4">
-                <p className="text-sm font-semibold text-ink">Express shipping</p>
-                <p className="mt-1 font-display text-2xl font-semibold text-ayli-blue">₹198</p>
-                <p className="mt-1 text-sm text-muted">1–2 business days</p>
+                <p className="text-sm font-semibold text-ink">Standard shipping</p>
+                <p className="mt-1 font-display text-2xl font-semibold text-ayli-blue">₹99</p>
+                <p className="mt-1 text-sm text-muted">Orders below ₹499 · 3–5 business days</p>
               </div>
             </div>
           </section>

@@ -336,7 +336,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 {
                   title: "Shipping & returns",
                   content:
-                    "Free shipping on orders above ₹999. Dispatch within 24 hours. 15-day hassle-free returns and exchanges.",
+                    "Free shipping on orders above ₹499. Dispatch within 24 hours. 7-day hassle-free returns (unboxing video mandatory).",
                 },
               ]}
             />

@@ -102,6 +102,18 @@ export async function createProductAction(input: AdminProductInput): Promise<Adm
     return { ok: false, fieldErrors: { sellingPrice: "Selling price cannot exceed MRP." } };
   }
 
+  const seenCombos = new Set<string>();
+  for (const v of parsed.data.variants) {
+    const key = `${v.colour.toLowerCase().trim()}|${v.size.toLowerCase().trim()}`;
+    if (seenCombos.has(key)) {
+      return {
+        ok: false,
+        message: `Duplicate variant (${v.colour} / ${v.size}). Each colour and size combination must be unique per product.`,
+      };
+    }
+    seenCombos.add(key);
+  }
+
   const uniqueError = await assertUniqueSlugSku(parsed.data.slug, parsed.data.sku);
   if (uniqueError) return { ok: false, fieldErrors: { [uniqueError.includes("slug") ? "slug" : "sku"]: uniqueError } };
 
@@ -166,6 +178,18 @@ export async function updateProductAction(
 
   const existing = await prisma.product.findUnique({ where: { id }, select: { id: true } });
   if (!existing) return { ok: false, message: "Product not found." };
+
+  const seenCombos = new Set<string>();
+  for (const v of parsed.data.variants) {
+    const key = `${v.colour.toLowerCase().trim()}|${v.size.toLowerCase().trim()}`;
+    if (seenCombos.has(key)) {
+      return {
+        ok: false,
+        message: `Duplicate variant (${v.colour} / ${v.size}). Each colour and size combination must be unique per product.`,
+      };
+    }
+    seenCombos.add(key);
+  }
 
   const uniqueError = await assertUniqueSlugSku(parsed.data.slug, parsed.data.sku, id);
   if (uniqueError) return { ok: false, fieldErrors: { [uniqueError.includes("slug") ? "slug" : "sku"]: uniqueError } };

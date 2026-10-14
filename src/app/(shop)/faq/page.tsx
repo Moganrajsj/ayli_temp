@@ -16,7 +16,7 @@ const FAQS = [
   },
   {
     q: "Can I try the item before buying?",
-    a: "AYLI is an online-only brand, which is why we offer 15-day hassle-free returns. Order your preferred size, try it at home, and return it for a full refund if it's not right.",
+    a: "AYLI is an online-only brand, which is why we offer 7-day returns. Order your preferred size, try it at home, and submit a return request with an unboxing video for a full refund if it's not right.",
   },
   {
     q: "What fabrics do you use?",
@@ -24,11 +24,11 @@ const FAQS = [
   },
   {
     q: "How long does shipping take?",
-    a: "Orders are dispatched within 24 hours on business days. Standard delivery takes 3–5 business days; express delivery (1–2 days) is available at checkout. Free standard shipping on orders above ₹999.",
+    a: "Orders are dispatched within 24 hours on business days. We offer Free Shipping on orders above ₹499 and Standard Shipping (₹99) on orders below ₹499. Delivery typically takes 3–5 business days.",
   },
   {
     q: "Can I pay on delivery (COD)?",
-    a: "Not currently. We accept UPI, credit/debit cards and netbanking via Razorpay — all secure and instant. We're evaluating COD for future releases.",
+    a: "Yes! Cash on Delivery is available across most pincodes for a flat ₹19 handling fee. We also accept UPI, cards and netbanking with zero extra fee.",
   },
   {
     q: "How do I track my order?",
@@ -36,7 +36,7 @@ const FAQS = [
   },
   {
     q: "What's your return policy?",
-    a: "You can return any unworn item with original tags attached within 15 days of delivery. We'll send a prepaid return label — no shipping charges to you. Refunds are processed within 5–7 business days.",
+    a: "You can request a return for any unworn item with original tags attached within 7 days of delivery. An unboxing video recorded while opening the sealed package is mandatory. Once verified, refunds are processed within 5–7 business days.",
   },
   {
     q: "Do you offer exchanges?",
@@ -44,7 +44,7 @@ const FAQS = [
   },
   {
     q: "Are the colours exactly as shown on screen?",
-    a: "We photograph all items under natural light for accuracy, but slight differences may occur due to screen settings and display calibration. Our return policy covers this — send it back within 15 days if it's not what you expected.",
+    a: "We photograph all items under natural light for accuracy, but slight differences may occur due to screen settings and display calibration. Our return policy covers this — submit a return request with an unboxing video within 7 days if it's not what you expected.",
   },
   {
     q: "Can I cancel or modify an order after placing it?",

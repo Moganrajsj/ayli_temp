@@ -64,8 +64,8 @@ const STORY_CATEGORIES = [
 ];
 
 const PROMISES = [
-  { icon: "truck" as const, title: "Free shipping", text: "On orders above ₹999", color: "text-ayli-peach" },
-  { icon: "shield" as const, title: "Easy returns", text: "15-day hassle-free", color: "text-ayli-blue" },
+  { icon: "truck" as const, title: "Free shipping", text: "On orders above ₹499", color: "text-ayli-peach" },
+  { icon: "shield" as const, title: "Easy returns", text: "7-day hassle-free", color: "text-ayli-blue" },
   { icon: "box" as const, title: "Fast dispatch", text: "Ships within 24 hours", color: "text-ayli-peach" },
   { icon: "sparkles" as const, title: "Loved styles", text: "Curated for Indian women", color: "text-ayli-blue" },
 ];

@@ -14,6 +14,7 @@ import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidateAdmin } from "@/lib/admin-revision";
 import { verifyPhonePeWebhookSignature } from "@/lib/phonepe";
+import { sendOrderConfirmationEmails, type OrderEmailData } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -141,6 +142,9 @@ export async function POST(request: NextRequest) {
             await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
           }
         });
+
+        // Send confirmation emails after successful payment (fire-and-forget)
+        void sendWebhookOrderEmails(order.id);
       }
     } else if (code === "PAYMENT_ERROR" || code === "PAYMENT_DECLINED") {
       const order = await prisma.order.findFirst({
@@ -198,5 +202,56 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
+  }
+}
+
+// ── Email helper (webhook context) ───────────────────────────────────────────
+
+async function sendWebhookOrderEmails(orderId: string): Promise<void> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        user: { select: { name: true, email: true } },
+        address: true,
+        items: true,
+      },
+    });
+    if (!order) return;
+
+    const emailData: OrderEmailData = {
+      orderNumber: order.orderNumber,
+      customerName: order.user.name ?? "Valued Customer",
+      customerEmail: order.user.email,
+      items: order.items.map((item) => ({
+        name: item.name,
+        colour: item.colour,
+        size: item.size,
+        quantity: item.quantity,
+        price: Number(item.price),
+        total: Number(item.total),
+        image: item.image,
+      })),
+      subtotal: Number(order.subtotal),
+      discount: Number(order.discount),
+      shipping: Number(order.shipping),
+      total: Number(order.total),
+      paymentMethod: order.paymentMethod ?? "Online",
+      shippingMethod: order.shippingMethod === "FREE" ? "Free Shipping" : "Standard Shipping",
+      address: {
+        name: order.address.name,
+        phone: order.address.phone,
+        line1: order.address.line1,
+        line2: order.address.line2,
+        city: order.address.city,
+        state: order.address.state,
+        pincode: order.address.pincode,
+        country: order.address.country,
+      },
+    };
+
+    await sendOrderConfirmationEmails(emailData);
+  } catch (err) {
+    console.error("[email] webhook sendWebhookOrderEmails error:", err);
   }
 }

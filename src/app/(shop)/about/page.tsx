@@ -48,7 +48,7 @@ export default function AboutPage() {
             <li>Fabrics you can actually breathe in — Indian summers are real</li>
             <li>True-to-size fits — no guessing, no gambling</li>
             <li>Shipping within 24 hours — because you have a life to get back to</li>
-            <li>15-day hassle-free returns — because we know you want to touch it first</li>
+            <li>7-day returns — because we know you want to touch it first</li>
             <li>Prices that make sense — no artificial markdowns, just honest value</li>
           </ul>
         </article>
